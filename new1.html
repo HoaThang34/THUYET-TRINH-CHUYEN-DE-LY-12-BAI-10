@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô phỏng Thí nghiệm Vết sáng Arago / Poisson (1818) – Phòng thí nghiệm Quang học</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #04060b;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        /* Thanh trượt quang học tùy chỉnh */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--thumb-color, #38bdf8);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 12px var(--thumb-color, rgba(56, 189, 248, 0.85));
+            border: 2px solid #ffffff;
+            transition: transform 0.12s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.18);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 999px;
+        }
+        #lambdaSlider::-webkit-slider-runnable-track {
+            background: linear-gradient(90deg, 
+                #7c3aed 0%, 
+                #3b82f6 22%, 
+                #06b6d4 38%, 
+                #10b981 52%, 
+                #eab308 70%, 
+                #f97316 84%, 
+                #ef4444 100%
+            );
+        }
+        .glass-panel {
+            background: rgba(11, 17, 30, 0.82);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(51, 65, 85, 0.55);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-200">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800/80 bg-[#070b14]/90 sticky top-0 z-30 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 text-[11px] font-mono font-semibold uppercase tracking-wider rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            Phòng thí nghiệm Quang học 3D
+                        </span>
+                        <span class="text-xs text-slate-400 font-mono">Arago – Poisson (1818)</span>
+                    </div>
+                    <h1 class="text-lg sm:text-2xl font-bold tracking-tight text-white mt-1">
+                        Thí nghiệm Vết sáng Arago: <span class="bg-gradient-to-r from-emerald-400 via-cyan-300 to-sky-400 bg-clip-text text-transparent">Chiếu Laser vào Quả bóng & Tâm sáng trong Bóng tối</span>
+                    </h1>
+                </div>
+
+                <!-- Công tắc Bật/Tắt Laser & Reset -->
+                <div class="flex items-center gap-2.5 self-start md:self-center">
+                    <button id="btnLaserPower" class="flex items-center gap-2.5 px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-lg active:scale-95 bg-emerald-500 text-slate-950 shadow-emerald-500/25">
+                        <span id="laserLed" class="w-2.5 h-2.5 rounded-full bg-slate-950 animate-ping"></span>
+                        <span id="laserPowerText">LASER: ĐANG BẬT</span>
+                    </button>
+                    <button id="btnReset" class="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 text-sm font-medium transition active:scale-95">
+                        Đặt lại chuẩn
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Lab Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+
+        <!-- Khung mô phỏng chính: Bàn quang học phối cảnh 3D + Cận cảnh Màn hứng -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+            <!-- Cột trái (8/12): Bàn quang học phối cảnh 3D -->
+            <div class="lg:col-span-8 glass-panel rounded-2xl p-4 flex flex-col justify-between shadow-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                    <div>
+                        <h2 class="text-sm sm:text-base font-semibold text-white flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                            Bàn thí nghiệm Quang học (Góc nhìn phối cảnh 3D)
+                        </h2>
+                        <p class="text-xs text-slate-400">Chùm laser mở rộng chiếu qua quả bóng kim loại đặt trên giá đỡ tới tấm bảng phía xa</p>
+                    </div>
+
+                    <!-- Chuyển đổi Lý thuyết Sóng vs Dự đoán Hạt cổ điển -->
+                    <div class="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+                        <button id="btnWaveMode" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-sky-500 text-slate-950 shadow">
+                            Thực tế (Quang học Sóng)
+                        </button>
+                        <button id="btnParticleMode" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white">
+                            Cổ điển (Thuyết Hạt)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Canvas 3D Perspective Optical Bench -->
+                <div class="relative w-full h-[360px] sm:h-[430px] rounded-xl overflow-hidden border border-slate-800 bg-[#03050a]">
+                    <canvas id="lab3dCanvas" class="w-full h-full block"></canvas>
+
+                    <!-- Các thông số vật lý nổi trên góc Canvas -->
+                    <div class="absolute top-3 left-3 flex flex-wrap gap-2 pointer-events-none">
+                        <div class="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800/90 backdrop-blur-md text-[11px] font-mono">
+                            <span class="text-slate-400">Số Fresnel $F$:</span>
+                            <span id="hudFresnel" class="text-sky-400 font-bold ml-1">1.88</span>
+                        </div>
+                        <div class="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800/90 backdrop-blur-md text-[11px] font-mono">
+                            <span class="text-slate-400">Căn chỉnh tâm:</span>
+                            <span id="hudAlignment" class="text-emerald-400 font-bold ml-1">ĐỒNG TRỤC (100%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột phải (4/12): Cận cảnh Tấm bảng (Màn hứng trực diện) -->
+            <div class="lg:col-span-4 glass-panel rounded-2xl p-4 flex flex-col justify-between shadow-2xl">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h2 class="text-sm sm:text-base font-semibold text-white">Cận cảnh Tấm bảng hứng sáng</h2>
+                            <p class="text-xs text-slate-400">Góc nhìn thẳng diện vào tâm bóng quả bóng</p>
+                        </div>
+                        <span id="spotIndicator" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            TÂM SÁNG CHÓI
+                        </span>
+                    </div>
+
+                    <!-- Canvas Zoomed Screen View -->
+                    <div class="relative w-full aspect-square max-h-[290px] mx-auto rounded-xl overflow-hidden border border-slate-800 bg-black shadow-inner">
+                        <canvas id="zoomScreenCanvas" class="w-full h-full block"></canvas>
+                        <!-- Thước ngắm chữ thập -->
+                        <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                            <div class="w-full h-[1px] bg-white/10"></div>
+                        </div>
+                        <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                            <div class="h-full w-[1px] bg-white/10"></div>
+                        </div>
+                        <div class="absolute bottom-2 left-2.5 right-2.5 flex justify-between text-[10px] font-mono text-slate-400 pointer-events-none bg-black/65 px-2 py-1 rounded">
+                      
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ghi chú hiện tượng trực quan -->
+                <div id="physicsStatusBox" class="mt-3 p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                    <strong class="text-emerald-400 block mb-1">Quan sát hiện tại:</strong>
+                    Chùm laser chiếu đồng trục qua quả bóng. Các sóng nhiễu xạ từ chu vi quả bóng truyền tới tâm bảng với quang trình bằng nhau, giao thoa tăng cường tạo thành <strong class="text-white">Vết sáng Arago</strong> rực rỡ ngay giữa bóng tối.
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng điều khiển thông số thí nghiệm (4 thanh trượt vật lý) -->
+        <section class="glass-panel rounded-2xl p-4 sm:p-5 shadow-xl">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- 1. Bước sóng Laser -->
+                <div class="bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="lambdaSlider" class="text-xs font-semibold text-slate-200">1. Bước sóng Laser ($\lambda$)</label>
+                        <span id="valLambda" class="text-xs font-mono font-bold text-emerald-400">532 nm</span>
+                    </div>
+                    <input type="range" id="lambdaSlider" min="400" max="680" value="532" step="1">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>400nm (Tím)</span>
+                        <span>532nm (Lục)</span>
+                        <span>650nm (Đỏ)</span>
+                    </div>
+                </div>
+
+                <!-- 2. Đường kính quả bóng -->
+                <div class="bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="diameterSlider" class="text-xs font-semibold text-slate-200">2. Đường kính quả bóng ($d$)</label>
+                        <span id="valDiameter" class="text-xs font-mono font-bold text-sky-300">6.0 mm</span>
+                    </div>
+                    <input type="range" id="diameterSlider" min="2.0" max="15.0" value="6.0" step="0.5">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>2.0 mm</span>
+                        <span>8.5 mm</span>
+                        <span>15.0 mm</span>
+                    </div>
+                </div>
+
+                <!-- 3. Khoảng cách từ quả bóng đến tấm bảng -->
+                <div class="bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="distanceSlider" class="text-xs font-semibold text-slate-200">3. Khoảng cách tới bảng ($z$)</label>
+                        <span id="valDistance" class="text-xs font-mono font-bold text-sky-300">2.5 m</span>
+                    </div>
+                    <input type="range" id="distanceSlider" min="0.5" max="5.0" value="2.5" step="0.1">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>0.5 m</span>
+                        <span>2.5 m</span>
+                        <span>5.0 m</span>
+                    </div>
+                </div>
+
+                <!-- 4. Độ lệch tâm tia Laser (Căn chỉnh trục) -->
+                <div class="bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="offsetSlider" class="text-xs font-semibold text-slate-200">4. Độ lệch tâm tia Laser</label>
+                        <span id="valOffset" class="text-xs font-mono font-bold text-amber-300">0.0 mm</span>
+                    </div>
+                    <input type="range" id="offsetSlider" min="-3.0" max="3.0" value="0.0" step="0.1">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>-3.0 mm</span>
+                        <span>0 (Chuẩn tâm)</span>
+                        <span>+3.0 mm</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        /**
+         * MÔ PHỎNG PHÒNG THÍ NGHIỆM QUANG HỌC 3D: VẾT SÁNG ARAGO / POISSON (1818)
+         * Bao gồm:
+         * 1. Bàn quang học phối cảnh 3D (Pseudo-3D Perspective) với nguồn Laser kim loại,
+         *    chùm tia laser mở rộng (diverging cone), hạt bụi lơ lửng, quả bóng kim loại bóng bẩy
+         *    trên giá đỡ mảnh, vùng bóng tối hình nón (umbra), sóng nhiễu xạ hội tụ và tấm bảng hứng sáng.
+         * 2. Cận cảnh Màn hứng trực diện tính toán cường độ nhiễu xạ Fresnel theo hàm Bessel J_0^2(x),
+         *    hỗ trợ hiệu ứng lệch trục (off-axis phase symmetry breaking) và chế độ Thuyết Hạt.
+         */
+
+        const state = {
+            laserOn: true,
+            lambda: 532,        // nm (400 - 680)
+            diameter: 6.0,      // mm (2.0 - 15.0)
+            distance: 2.5,      // m  (0.5 - 5.0)
+            offset: 0.0,        // mm (-3.0 - +3.0) độ lệch tâm tia laser
+            mode: 'wave',       // 'wave' | 'particle'
+            time: 0
+        };
+
+        // Canvas & Contexts
+        const labCanvas = document.getElementById('lab3dCanvas');
+        const zoomCanvas = document.getElementById('zoomScreenCanvas');
+        const labCtx = labCanvas.getContext('2d');
+        const zoomCtx = zoomCanvas.getContext('2d');
+
+        // UI Controls
+        const btnLaserPower = document.getElementById('btnLaserPower');
+        const laserLed = document.getElementById('laserLed');
+        const laserPowerText = document.getElementById('laserPowerText');
+        const btnReset = document.getElementById('btnReset');
+
+        const btnWaveMode = document.getElementById('btnWaveMode');
+        const btnParticleMode = document.getElementById('btnParticleMode');
+
+        const lambdaSlider = document.getElementById('lambdaSlider');
+        const diameterSlider = document.getElementById('diameterSlider');
+        const distanceSlider = document.getElementById('distanceSlider');
+        const offsetSlider = document.getElementById('offsetSlider');
+
+        const valLambda = document.getElementById('valLambda');
+        const valDiameter = document.getElementById('valDiameter');
+        const valDistance = document.getElementById('valDistance');
+        const valOffset = document.getElementById('valOffset');
+
+        const hudFresnel = document.getElementById('hudFresnel');
+        const hudAlignment = document.getElementById('hudAlignment');
+        const spotIndicator = document.getElementById('spotIndicator');
+        const physicsStatusBox = document.getElementById('physicsStatusBox');
+
+        // Hệ thống hạt bụi lơ lửng trong phòng thí nghiệm để tăng chiều sâu không gian 3D
+        const dustParticles = Array.from({ length: 65 }, () => ({
+            nx: Math.random(),          // Vị trí chuẩn hóa theo trục X (0..1)
+            ny: (Math.random() - 0.5) * 2, // Vị trí chuẩn hóa theo trục Y (-1..1)
+            size: 0.8 + Math.random() * 1.8,
+            speedX: (Math.random() - 0.5) * 0.0008,
+            speedY: (Math.random() - 0.5) * 0.0012,
+            phase: Math.random() * Math.PI * 2
+        }));
+
+        /**
+         * Chuyển đổi bước sóng (nm) sang màu RGB thực tế của quang phổ khả kiến
+         */
+        function wavelengthToRGB(wavelength) {
+            let gamma = 0.80;
+            let R = 0, G = 0, B = 0, factor = 0;
+
+            if (wavelength >= 380 && wavelength < 440) {
+                R = -(wavelength - 440) / 60; G = 0; B = 1;
+            } else if (wavelength >= 440 && wavelength < 490) {
+                R = 0; G = (wavelength - 440) / 50; B = 1;
+            } else if (wavelength >= 490 && wavelength < 510) {
+                R = 0; G = 1; B = -(wavelength - 510) / 20;
+            } else if (wavelength >= 510 && wavelength < 580) {
+                R = (wavelength - 510) / 70; G = 1; B = 0;
+            } else if (wavelength >= 580 && wavelength < 645) {
+                R = 1; G = -(wavelength - 645) / 65; B = 0;
+            } else if (wavelength >= 645 && wavelength <= 780) {
+                R = 1; G = 0; B = 0;
+            }
+
+            if (wavelength >= 380 && wavelength < 420) {
+                factor = 0.3 + 0.7 * (wavelength - 380) / 40;
+            } else if (wavelength >= 420 && wavelength < 701) {
+                factor = 1.0;
+            } else if (wavelength >= 701 && wavelength <= 780) {
+                factor = 0.3 + 0.7 * (780 - wavelength) / 80;
+            }
+
+            const r = R === 0 ? 0 : Math.round(255 * Math.pow(R * factor, gamma));
+            const g = G === 0 ? 0 : Math.round(255 * Math.pow(G * factor, gamma));
+            const b = B === 0 ? 0 : Math.round(255 * Math.pow(B * factor, gamma));
+            return { r, g, b, css: `rgb(${r}, ${g}, ${b})` };
+        }
+
+        /**
+         * Hàm Bessel bậc 0 loại 1: J_0(x)
+         */
+        function besselJ0(x) {
+            const ax = Math.abs(x);
+            if (ax < 8.0) {
+                const y = x * x;
+                const ans1 = 57568490574.0 + y * (-13362590354.0 + y * (651619640.7
+                    + y * (-11214424.18 + y * (77392.33017 + y * (-184.9052456)))));
+                const ans2 = 57568490411.0 + y * (1029532985.0 + y * (9494680.718
+                    + y * (59272.64853 + y * (267.8532712 + y * 1.0))));
+                return ans1 / ans2;
+            } else {
+                const z = 8.0 / ax;
+                const y = z * z;
+                const xx = ax - 0.785398164;
+                const ans1 = 1.0 + y * (-0.1098628627e-2 + y * (0.2734510407e-4
+                    + y * (-0.2073370639e-5 + y * 0.2093887211e-6)));
+                const ans2 = -0.1562499995e-1 + y * (0.1430488765e-3
+                    + y * (-0.6911147651e-5 + y * (0.7621095161e-6 - y * 0.934945152e-7)));
+                return Math.sqrt(0.636619772 / ax) * (Math.cos(xx) * ans1 - z * Math.sin(xx) * ans2);
+            }
+        }
+
+        /**
+         * Tính số Fresnel F = R^2 / (lambda * z)
+         */
+        function getFresnelNumber() {
+            const R_m = (state.diameter / 2.0) * 1e-3;
+            const lambda_m = state.lambda * 1e-9;
+            return (R_m * R_m) / (lambda_m * state.distance);
+        }
+
+        /**
+         * Tính cường độ sáng tại tọa độ (x_mm, y_mm) trên mặt phẳng tấm bảng
+         * Gốc (0,0) là tâm bóng hình học của quả bóng trên tấm bảng.
+         */
+        function computeScreenIntensity(x_mm, y_mm) {
+            if (!state.laserOn) return 0;
+
+            const R_shadow = state.diameter / 2.0; // Bán kính bóng hình học (mm)
+            const r = Math.hypot(x_mm, y_mm);
+
+            // Hồ sơ chùm laser mở rộng bao quanh quả bóng (Gaussian beam)
+            const beamRadius = Math.max(12.0, state.diameter * 1.65);
+            // Tâm chùm tia laser bị dịch theo state.offset
+            const rBeam = Math.hypot(x_mm - state.offset, y_mm);
+            const incidentProfile = Math.exp(-Math.pow(rBeam / beamRadius, 2) * 1.4);
+
+            // Chế độ Lý thuyết Hạt cổ điển (Quang hình học)
+            if (state.mode === 'particle') {
+                if (r < R_shadow) return 0.0; // Bóng tối đen tuyệt đối
+                return incidentProfile;
+            }
+
+            // Chế độ Quang học Sóng (Nhiễu xạ Fresnel quanh quả bóng cầu)
+            const lambda_mm = state.lambda * 1e-6;
+            const z_mm = state.distance * 1000.0;
+            const k = (2 * Math.PI) / lambda_mm;
+
+            // Tỷ lệ phóng đại hình ảnh nhiễu xạ trên màn để người dùng dễ quan sát trực quan
+            // (Kết hợp tỷ lệ vật lý thực với hệ số quan sát kính hiển vi)
+            const visualScale = 2.4;
+            const u = (k * R_shadow * r) / (z_mm * visualScale);
+
+            // Ảnh hưởng của độ lệch tâm tia laser (state.offset):
+            // Khi tia laser lệch tâm, cường độ chiếu sáng hai bên mép quả bóng mất cân bằng,
+            // phá vỡ giao thoa đồng pha tại tâm và làm vết sáng bị kéo lệch / mờ đi.
+            const normOffset = Math.abs(state.offset) / (R_shadow * 0.65);
+            const symmetryFactor = Math.exp(-normOffset * normOffset * 2.2);
+
+            if (r < R_shadow) {
+                // BÊN TRONG VÙNG BÓNG TỐI CỦA QUẢ BÓNG (r < R_shadow)
+                // Nếu tia laser lệch tâm, điểm hội tụ bị kéo lệch nhẹ và biến dạng thành hình elip/vệt mờ
+                const effectiveR = Math.hypot(x_mm - state.offset * 0.18, y_mm * (1 + normOffset * 0.35));
+                const uEff = (k * R_shadow * effectiveR) / (z_mm * visualScale);
+
+                const j0 = besselJ0(uEff);
+                // Độ suy giảm từ tâm ra sát mép bóng
+                const radialEnvelope = Math.pow(1.0 - Math.pow(r / R_shadow, 2), 0.55);
+                // Ánh sáng nhiễu xạ rò rỉ nhẹ sát mép trong quả bóng
+                const innerEdgeGlow = 0.22 * Math.exp(-Math.pow((R_shadow - r) / (0.07 * R_shadow), 2));
+
+                const spotIntensity = (j0 * j0 * radialEnvelope * symmetryFactor * 1.15) + innerEdgeGlow;
+                return Math.min(1.3, spotIntensity * incidentProfile);
+            } else {
+                // BÊN NGOÀI BÓNG TỐI (r >= R_shadow): Vùng sáng laser + các vân nhiễu xạ Fresnel đồng tâm
+                const dr = r - R_shadow;
+                const fresnelPhase = (Math.PI * dr * dr) / (lambda_mm * z_mm * 0.35) + Math.PI / 4;
+                const edgeAmp = 0.42 / (1.0 + 2.2 * Math.sqrt(dr / R_shadow));
+                const fringeModulation = 1.0 + edgeAmp * edgeAmp + 2.0 * edgeAmp * Math.cos(fresnelPhase);
+
+                return Math.min(1.4, incidentProfile * fringeModulation);
+            }
+        }
+
+        /**
+         * Cập nhật kích thước Canvas chuẩn Retina / HiDPI
+         */
+        function resizeAllCanvases() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            [labCanvas, zoomCanvas].forEach(canvas => {
+                const rect = canvas.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    canvas.width = Math.round(rect.width * dpr);
+                    canvas.height = Math.round(rect.height * dpr);
+                    const ctx = canvas.getContext('2d');
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+            });
+        }
+
+        /**
+         * VẼ KHUNG CẢNH 1: BÀN THÍ NGHIỆM QUANG HỌC PHỐI CẢNH 3D (PSEUDO-3D LAB SETUP)
+         */
+        function drawLab3DScene() {
+            const w = labCanvas.clientWidth;
+            const h = labCanvas.clientHeight;
+            const ctx = labCtx;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const color = wavelengthToRGB(state.lambda);
+
+            // 1. NỀN PHÒNG THÍ NGHIỆM TỐI & MẶT BÀN QUANG HỌC PHỐI CẢNH
+            const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.42, 30, w * 0.5, h * 0.5, w * 0.75);
+            bgGrad.addColorStop(0, '#0c1322');
+            bgGrad.addColorStop(1, '#03050a');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Mặt bàn quang học (Optical Breadboard) nhìn phối cảnh từ góc nghiêng
+            const tableTopY = h * 0.67;
+            const tableBotY = h * 0.96;
+
+            const tableGrad = ctx.createLinearGradient(0, tableTopY, 0, tableBotY);
+            tableGrad.addColorStop(0, '#0f172a');
+            tableGrad.addColorStop(0.4, '#162033');
+            tableGrad.addColorStop(1, '#090d16');
+
+            ctx.fillStyle = tableGrad;
+            ctx.beginPath();
+            ctx.moveTo(w * 0.04, tableTopY);
+            ctx.lineTo(w * 0.96, tableTopY);
+            ctx.lineTo(w * 1.0, tableBotY);
+            ctx.lineTo(w * 0.0, tableBotY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Viền cạnh trước của bàn quang học
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, tableBotY, w, h - tableBotY);
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, tableBotY);
+            ctx.lineTo(w, tableBotY);
+            ctx.stroke();
+
+            // Hệ thống lỗ ốc tiêu chuẩn (M6 grid) trên mặt bàn quang học phối cảnh
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
+            const rows = 5;
+            const cols = 18;
+            for (let r = 0; r < rows; r++) {
+                const t = (r + 0.5) / rows;
+                const y = tableTopY + t * (tableBotY - tableTopY);
+                const rowMargin = (1 - t) * (w * 0.04);
+                const rowWidth = w - rowMargin * 2;
+                const holeRx = 2.0 + t * 1.6;
+                const holeRy = 1.0 + t * 0.8;
+
+                for (let c = 0; c <= cols; c++) {
+                    const x = rowMargin + (c / cols) * rowWidth;
+                    ctx.beginPath();
+                    ctx.ellipse(x, y, holeRx, holeRy, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Tọa độ các thiết bị trên bàn quang học
+            const opticalAxisY = h * 0.43; // Độ cao trục quang học chính
+            const laserX = w * 0.14;       // Vị trí đầu phát laser
+            const ballX = w * 0.43;        // Vị trí quả bóng ở giữa
+            // Vị trí tấm bảng thay đổi động theo thanh trượt Khoảng cách (0.5m -> 5.0m)
+            const distNorm = (state.distance - 0.5) / 4.5; // 0..1
+            const screenX = w * (0.66 + distNorm * 0.24);
+
+            // Bán kính hiển thị của quả bóng trên bàn 3D
+            const ballRadius = 12 + ((state.diameter - 2.0) / 13.0) * 18;
+            // Độ lệch trục của chùm laser (pixel)
+            const offsetPx = (state.offset / 3.0) * (ballRadius * 0.75);
+
+            // 2. ĐỔ BÓNG VẬT LÝ CỦA THIẾT BỊ TRÊN MẶT BÀN
+            ctx.fillStyle = 'rgba(2, 4, 10, 0.65)';
+            // Bóng đế Laser
+            ctx.beginPath();
+            ctx.ellipse(laserX - 25, h * 0.80, 48, 11, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Bóng đế Quả bóng
+            ctx.beginPath();
+            ctx.ellipse(ballX, h * 0.80, 22, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Bóng đế Tấm bảng
+            ctx.beginPath();
+            ctx.ellipse(screenX, h * 0.80, 32, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3. CHÙM TIA LASER MỞ RỘNG (DIVERGING CONE BEAM) & VÙNG BÓNG TỐI HÌNH NÓN
+            const beamStartHalfH = 4;
+            const beamBallHalfH = ballRadius * 1.95;
+            const beamScreenHalfH = beamBallHalfH * (1.18 + distNorm * 0.25);
+
+            if (state.laserOn) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+
+                // A. Chùm tia laser từ đầu phát -> Quả bóng
+                const gradBeam1 = ctx.createLinearGradient(laserX, 0, ballX, 0);
+                gradBeam1.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.75)`);
+                gradBeam1.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0.34)`);
+
+                ctx.fillStyle = gradBeam1;
+                ctx.beginPath();
+                ctx.moveTo(laserX, opticalAxisY + offsetPx - beamStartHalfH);
+                ctx.lineTo(ballX, opticalAxisY + offsetPx - beamBallHalfH);
+                ctx.lineTo(ballX, opticalAxisY + offsetPx + beamBallHalfH);
+                ctx.lineTo(laserX, opticalAxisY + offsetPx + beamStartHalfH);
+                ctx.closePath();
+                ctx.fill();
+
+                // B. Chùm tia laser tiếp tục mở rộng từ Quả bóng -> Tấm bảng
+                const gradBeam2 = ctx.createLinearGradient(ballX, 0, screenX, 0);
+                gradBeam2.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.32)`);
+                gradBeam2.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0.14)`);
+
+                ctx.fillStyle = gradBeam2;
+                ctx.beginPath();
+                ctx.moveTo(ballX, opticalAxisY + offsetPx - beamBallHalfH);
+                ctx.lineTo(screenX, opticalAxisY + offsetPx - beamScreenHalfH);
+                ctx.lineTo(screenX, opticalAxisY + offsetPx + beamScreenHalfH);
+                ctx.lineTo(ballX, opticalAxisY + offsetPx + beamBallHalfH);
+                ctx.closePath();
+                ctx.fill();
+
+                // C. Hạt bụi lơ lửng phát sáng khi bay ngang qua luồng tia laser
+                dustParticles.forEach(p => {
+                    p.nx += p.speedX;
+                    p.ny += p.speedY;
+                    if (p.nx < 0) p.nx = 1;
+                    if (p.nx > 1) p.nx = 0;
+                    if (p.ny < -1) p.ny = 1;
+                    if (p.ny > 1) p.ny = -1;
+
+                    const px = laserX + p.nx * (screenX - laserX);
+                    const progress = p.nx;
+                    const currentBeamHalfH = beamStartHalfH + progress * (beamScreenHalfH - beamStartHalfH);
+                    const py = opticalAxisY + offsetPx + p.ny * currentBeamHalfH * 1.1;
+
+                    // Kiểm tra hạt bụi có nằm trong vùng bóng tối sau quả bóng không
+                    const shadowHalfH = ballRadius * (1 + ((px - ballX) / (screenX - ballX)) * 0.15);
+                    const inShadow = (px > ballX) && (Math.abs(py - opticalAxisY) < shadowHalfH * 0.9);
+
+                    if (!inShadow && Math.abs(py - (opticalAxisY + offsetPx)) < currentBeamHalfH) {
+                        const twinkle = 0.4 + 0.6 * Math.sin(state.time * 0.05 + p.phase);
+                        ctx.fillStyle = `rgba(${Math.min(255, color.r + 90)}, ${Math.min(255, color.g + 90)}, ${Math.min(255, color.b + 90)}, ${0.45 * twinkle})`;
+                        ctx.beginPath();
+                        ctx.arc(px, py, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                ctx.restore();
+
+                // D. VÙNG BÓNG TỐI HÌNH NÓN (UMBRA) PHÍA SAU QUẢ BÓNG
+                const shadowEndHalfH = ballRadius * (1.06 + distNorm * 0.14);
+                const shadowGrad = ctx.createLinearGradient(ballX, 0, screenX, 0);
+                shadowGrad.addColorStop(0, 'rgba(2, 4, 10, 0.92)');
+                shadowGrad.addColorStop(1, 'rgba(2, 4, 10, 0.65)');
+
+                ctx.fillStyle = shadowGrad;
+                ctx.beginPath();
+                ctx.moveTo(ballX, opticalAxisY - ballRadius * 0.96);
+                ctx.lineTo(screenX, opticalAxisY - shadowEndHalfH);
+                ctx.lineTo(screenX, opticalAxisY + shadowEndHalfH);
+                ctx.lineTo(ballX, opticalAxisY + ballRadius * 0.96);
+                ctx.closePath();
+                ctx.fill();
+
+                // E. SÓNG NHIỄU XẠ UỐN CONG QUANH MÉP QUẢ BÓNG & HỘI TỤ VỀ TRỤC CHÍNH (CHẾ ĐỘ SÓNG)
+                if (state.mode === 'wave') {
+                    const waveSpacing = 12 + ((state.lambda - 400) / 280) * 10;
+                    const waveShift = (state.time * 0.85) % waveSpacing;
+                    const maxArcR = screenX - ballX;
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(ballX, opticalAxisY - beamScreenHalfH, screenX - ballX, beamScreenHalfH * 2);
+                    ctx.clip();
+
+                    // Các gợn sóng nhiễu xạ xuất phát từ mép trên & mép dưới quả bóng
+                    for (let r = waveShift; r < maxArcR; r += waveSpacing) {
+                        const alpha = Math.max(0.04, 0.36 * (1 - r / maxArcR));
+                        ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+                        ctx.lineWidth = 1.3;
+
+                        ctx.beginPath();
+                        ctx.arc(ballX, opticalAxisY - ballRadius, r, -0.35, 0.55);
+                        ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.arc(ballX, opticalAxisY + ballRadius, r, -0.55, 0.35);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+
+                    // Dải hội tụ giao thoa đồng pha chạy dọc trục chính vào tâm bảng
+                    const alignmentStrength = Math.exp(-Math.pow(state.offset / 1.8, 2));
+                    if (alignmentStrength > 0.08) {
+                        const coreGrad = ctx.createLinearGradient(ballX + ballRadius * 0.8, 0, screenX, 0);
+                        coreGrad.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+                        coreGrad.addColorStop(0.35, `rgba(${color.r}, ${color.g}, ${color.b}, ${0.5 * alignmentStrength})`);
+                        coreGrad.addColorStop(1, `rgba(255, 255, 255, ${0.95 * alignmentStrength})`);
+
+                        ctx.strokeStyle = coreGrad;
+                        ctx.lineWidth = 2.6;
+                        ctx.beginPath();
+                        ctx.moveTo(ballX + ballRadius * 0.8, opticalAxisY);
+                        ctx.lineTo(screenX, opticalAxisY);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // 4. VẼ THIẾT BỊ 1 (BÊN TRÁI): NGUỒN PHÁT LASER KIM LOẠI CHI TIẾT
+            drawLaserEmitter(ctx, laserX, opticalAxisY + offsetPx, h * 0.80, color, state.laserOn);
+
+            // 5. VẼ THIẾT BỊ 2 (Ở GIỮA): QUẢ BÓNG KIM LOẠI ĐEN BÓNG BẨY TRÊN GIÁ ĐỠ MẢNH
+            drawTargetSphere(ctx, ballX, opticalAxisY, h * 0.80, ballRadius, color, state.laserOn);
+
+            // 6. VẼ THIẾT BỊ 3 (BÊN PHẢI): TẤM BẢNG HỨNG SÁNG PHỐI CẢNH & KẾT QUẢ TRÊN BẢNG
+            drawProjectionBoard3D(ctx, screenX, opticalAxisY, h * 0.80, ballRadius, distNorm, offsetPx, color);
+
+            // 7. NHÃN CHÚ THÍCH TRỰC QUAN TRÊN SƠ ĐỒ
+            drawSceneAnnotations(ctx, laserX, ballX, screenX, opticalAxisY, ballRadius, h * 0.80);
+        }
+
+        /**
+         * Vẽ ống phát tia Laser kim loại chi tiết + chân đế quang học
+         */
+        function drawLaserEmitter(ctx, nozzleX, beamY, baseY, color, isOn) {
+            const bodyW = 74;
+            const bodyH = 26;
+            const bodyX = nozzleX - bodyW;
+            const bodyY = beamY - bodyH / 2;
+
+            // Chân trụ gắn vào bàn quang học
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(bodyX + bodyW * 0.45 - 3, bodyY + bodyH, 6, baseY - (bodyY + bodyH));
+            // Đế kẹp
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(bodyX + bodyW * 0.45 - 18, baseY - 6, 36, 9, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            // Thân ống laser hình trụ kim loại (gradient 3D)
+            const cylGrad = ctx.createLinearGradient(0, bodyY, 0, bodyY + bodyH);
+            cylGrad.addColorStop(0, '#475569');
+            cylGrad.addColorStop(0.25, '#94a3b8');
+            cylGrad.addColorStop(0.55, '#334155');
+            cylGrad.addColorStop(1, '#0f172a');
+
+            ctx.fillStyle = cylGrad;
+            ctx.beginPath();
+            ctx.roundRect(bodyX, bodyY, bodyW - 8, bodyH, 4);
+            ctx.fill();
+
+            // Vòng tản nhiệt & đầu thấu kính mở rộng chùm tia (Beam Expander)
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(nozzleX - 14, bodyY - 2, 14, bodyH + 4);
+            ctx.strokeStyle = '#64748b';
+            ctx.strokeRect(nozzleX - 14, bodyY - 2, 14, bodyH + 4);
+
+            // Đèn LED báo nguồn trên thân máy Laser
+            ctx.fillStyle = isOn ? '#10b981' : '#ef4444';
+            ctx.shadowColor = isOn ? '#10b981' : '#ef4444';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(bodyX + 16, bodyY + 8, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Thấu kính phát sáng ở đầu ống
+            if (isOn) {
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = color.css;
+                ctx.shadowBlur = 16;
+                ctx.beginPath();
+                ctx.ellipse(nozzleX, beamY, 2.5, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        /**
+         * Vẽ quả bóng tròn kim loại đen bóng bẩy gắn trên thanh đỡ mảnh
+         */
+        function drawTargetSphere(ctx, x, y, baseY, radius, color, isOn) {
+            // Đế trụ trên bàn quang học
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.ellipse(x, baseY, 15, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Thanh kim loại siêu mảnh đỡ quả bóng (tối thiểu hóa nhiễu xạ phụ)
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(x, baseY);
+            ctx.lineTo(x, y + radius * 0.85);
+            ctx.stroke();
+
+            // Quả bóng 3D đen bóng bẩy (viên bi thép phủ đen)
+            const sphereGrad = ctx.createRadialGradient(
+                x - radius * 0.32, y - radius * 0.32, radius * 0.08,
+                x, y, radius
+            );
+            sphereGrad.addColorStop(0, '#64748b');
+            sphereGrad.addColorStop(0.35, '#1e293b');
+            sphereGrad.addColorStop(0.85, '#090d16');
+            sphereGrad.addColorStop(1, '#020408');
+
+            ctx.fillStyle = sphereGrad;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Viền phản quang laser màu sắc ở mép trái quả bóng (nơi chùm laser đập vào)
+            if (isOn) {
+                ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.85)`;
+                ctx.lineWidth = 2.0;
+                ctx.shadowColor = color.css;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, Math.PI * 0.58, Math.PI * 1.42);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        /**
+         * Vẽ tấm bảng hứng sáng (màn chiếu) phối cảnh 3D và hình ảnh vết sáng Arago trực tiếp trên bảng
+         */
+        function drawProjectionBoard3D(ctx, x, centerY, baseY, ballRadius, distNorm, offsetPx, color) {
+            const boardW = 46;
+            const boardH = 148;
+            const skewY = 18; // Độ nghiêng phối cảnh 3D của mặt bảng
+
+            const topY = centerY - boardH / 2;
+            const botY = centerY + boardH / 2;
+
+            // Chân đế tấm bảng trên bàn quang học
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(x - 3, botY + skewY * 0.5, 6, baseY - (botY + skewY * 0.5));
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#475569';
+            ctx.beginPath();
+            ctx.ellipse(x, baseY, 22, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Mặt tấm bảng hình bình hành phối cảnh 3D
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(x - boardW / 2, topY - skewY);
+            ctx.lineTo(x + boardW / 2, topY + skewY);
+            ctx.lineTo(x + boardW / 2, botY + skewY);
+            ctx.lineTo(x - boardW / 2, botY - skewY);
+            ctx.closePath();
+
+            ctx.fillStyle = '#0b101b';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#475569';
+            ctx.stroke();
+
+            // Cắt vùng vẽ bên trong bề mặt tấm bảng để hiển thị ánh sáng laser & bóng quả bóng
+            ctx.clip();
+
+            if (state.laserOn) {
+                // Áp dụng biến đổi phối cảnh nghiêng khớp với mặt bảng
+                ctx.translate(x, centerY);
+                ctx.transform(0.52, skewY / (boardW * 0.52), 0, 1, 0, 0);
+
+                // 1. Vùng sáng laser phủ lên tấm bảng
+                const spotBeamR = ballRadius * (2.3 + distNorm * 0.35);
+                const laserSpotGrad = ctx.createRadialGradient(0, offsetPx, 2, 0, offsetPx, spotBeamR);
+                laserSpotGrad.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.78)`);
+                laserSpotGrad.addColorStop(0.65, `rgba(${color.r}, ${color.g}, ${color.b}, 0.32)`);
+                laserSpotGrad.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+
+                ctx.fillStyle = laserSpotGrad;
+                ctx.beginPath();
+                ctx.arc(0, offsetPx, spotBeamR, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 2. Vùng bóng tròn tối của quả bóng trên tấm bảng
+                const shadowR = ballRadius * (1.06 + distNorm * 0.14);
+                ctx.fillStyle = '#03050a';
+                ctx.beginPath();
+                ctx.arc(0, 0, shadowR, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 3. Nếu ở chế độ Quang học Sóng: Vẽ các vòng giao thoa mờ & VẾT SÁNG ARAGO rực rỡ ở tâm!
+                if (state.mode === 'wave') {
+                    const alignment = Math.exp(-Math.pow(state.offset / 1.8, 2));
+                    if (alignment > 0.05) {
+                        // Vòng giao thoa đồng tâm mảnh
+                        ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${0.35 * alignment})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, shadowR * 0.48, 0, Math.PI * 2);
+                        ctx.stroke();
+
+                        // Điểm sáng Arago chói lọi ngay chính giữa vùng bóng tối!
+                        const aragoGlow = ctx.createRadialGradient(0, 0, 0.5, 0, 0, shadowR * 0.35);
+                        aragoGlow.addColorStop(0, `rgba(255, 255, 255, ${alignment})`);
+                        aragoGlow.addColorStop(0.35, `rgba(${color.r}, ${color.g}, ${color.b}, ${0.9 * alignment})`);
+                        aragoGlow.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+
+                        ctx.fillStyle = aragoGlow;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, shadowR * 0.35, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Vẽ các nhãn chú thích chỉ dẫn trực quan ngay trên sơ đồ 3D
+         */
+        function drawSceneAnnotations(ctx, laserX, ballX, screenX, axisY, ballRadius, baseY) {
+            ctx.font = '500 11px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+
+            // 1. Nguồn Laser
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText('Nguồn Laser', laserX - 32, baseY + 24);
+
+            // 2. Quả bóng cản sáng
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fillText('Quả bóng cản sáng', ballX, baseY + 24);
+
+            // 3. Vùng bóng tối (Umbra)
+            const midShadowX = (ballX + screenX) / 2;
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.75)';
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.fillText('Vùng bóng tối', midShadowX, axisY + ballRadius + 16);
+
+            // 4. Tấm bảng hứng sáng
+            ctx.font = '500 11px "Inter", sans-serif';
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fillText('Tấm bảng hứng sáng', screenX, baseY + 24);
+
+            // 5. Mũi tên chỉ vào Vết sáng Arago trên tấm bảng
+            if (state.laserOn && state.mode === 'wave' && Math.abs(state.offset) < 2.2) {
+                const tagX = screenX - 46;
+                const tagY = axisY - 54;
+
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.75)';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(tagX, tagY + 6);
+                ctx.lineTo(screenX - 4, axisY - 2);
+                ctx.stroke();
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = '600 11px "Inter", sans-serif';
+                ctx.fillText('Vết sáng Arago', tagX - 10, tagY);
+            }
+        }
+
+        /**
+         * VẼ KHUNG CẢNH 2: CẬN CẢNH MÀN HỨNG TRỰC DIỆN (ZOOMED SCREEN VIEW)
+         */
+        function drawZoomedScreen() {
+            const w = zoomCanvas.clientWidth;
+            const h = zoomCanvas.clientHeight;
+            const ctx = zoomCtx;
+
+            const cx = w / 2;
+            const cy = h / 2;
+
+            ctx.fillStyle = '#020408';
+            ctx.fillRect(0, 0, w, h);
+
+            if (!state.laserOn) {
+                ctx.fillStyle = '#475569';
+                ctx.font = '12px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('LASER ĐANG TẮT', cx, cy - 6);
+                return;
+            }
+
+            const color = wavelengthToRGB(state.lambda);
+            // Tỷ lệ hiển thị màn hứng cận cảnh: nửa chiều rộng canvas tương ứng 12 mm thực tế
+            const maxViewMm = 11.5;
+            const pxPerMm = (Math.min(w, h) * 0.46) / maxViewMm;
+
+            // Vẽ trường cường độ 2D bằng lưới ô vuông nhỏ tối ưu tốc độ cao (độ phân giải 2.5px)
+            // Hỗ trợ đầy đủ hiệu ứng lệch tâm (offset) bất đối xứng!
+            const step = 2.5;
+            for (let py = 0; py < h; py += step) {
+                const y_mm = (py - cy) / pxPerMm;
+                for (let px = 0; px < w; px += step) {
+                    const x_mm = (px - cx) / pxPerMm;
+                    const intensity = computeScreenIntensity(x_mm, y_mm);
+
+                    if (intensity > 0.008) {
+                        // Lõi cường độ cao chuyển sang trắng rực rỡ giống mắt người / cảm biến camera nhìn tia laser
+                        const whiteHot = Math.max(0, (intensity - 0.78) * 1.45);
+                        const rCol = Math.min(255, Math.round(color.r * intensity + 255 * whiteHot));
+                        const gCol = Math.min(255, Math.round(color.g * intensity + 255 * whiteHot));
+                        const bCol = Math.min(255, Math.round(color.b * intensity + 255 * whiteHot));
+
+                        ctx.fillStyle = `rgb(${rCol}, ${gCol}, ${bCol})`;
+                        ctx.fillRect(px, py, step + 0.5, step + 0.5);
+                    }
+                }
+            }
+
+            // Vẽ vòng tròn nét đứt mảnh đánh dấu ranh giới bóng hình học của quả bóng (r = d/2)
+            const shadowPx = (state.diameter / 2.0) * pxPerMm;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(cx, cy, shadowPx, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Chú thích ranh giới bóng tối trên góc vòng tròn
+            ctx.fillStyle = 'rgba(226, 232, 240, 0.7)';
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Bóng quả bóng (d=${state.diameter.toFixed(1)}mm)`, 10, 18);
+        }
+
+        /**
+         * Cập nhật toàn bộ giao diện số liệu, màu sắc và trạng thái vật lý
+         */
+        function updateUI() {
+            const color = wavelengthToRGB(state.lambda);
+
+            // Cập nhật hiển thị giá trị thanh trượt
+            valLambda.textContent = `${state.lambda} nm`;
+            valLambda.style.color = color.css;
+            lambdaSlider.style.setProperty('--thumb-color', color.css);
+
+            valDiameter.textContent = `${state.diameter.toFixed(1)} mm`;
+            valDistance.textContent = `${state.distance.toFixed(1)} m`;
+            valOffset.textContent = `${state.offset > 0 ? '+' : ''}${state.offset.toFixed(1)} mm`;
+
+            // Cập nhật Số Fresnel
+            const F = getFresnelNumber();
+            hudFresnel.textContent = F.toFixed(2);
+
+            // Cập nhật trạng thái căn chỉnh trục
+            const absOff = Math.abs(state.offset);
+            if (absOff < 0.15) {
+                hudAlignment.textContent = 'ĐỒNG TRỤC (100%)';
+                hudAlignment.className = 'text-emerald-400 font-bold ml-1';
+            } else if (absOff < 1.2) {
+                hudAlignment.textContent = `LỆCH NHẸ (${state.offset > 0 ? '+' : ''}${state.offset.toFixed(1)}mm)`;
+                hudAlignment.className = 'text-amber-400 font-bold ml-1';
+            } else {
+                hudAlignment.textContent = `MẤT ĐỐI XỨNG (${state.offset > 0 ? '+' : ''}${state.offset.toFixed(1)}mm)`;
+                hudAlignment.className = 'text-rose-400 font-bold ml-1';
+            }
+
+            // Cập nhật nút Bật/Tắt Laser
+            if (state.laserOn) {
+                btnLaserPower.className = 'flex items-center gap-2.5 px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-lg active:scale-95 bg-emerald-500 text-slate-950 shadow-emerald-500/25';
+                laserLed.className = 'w-2.5 h-2.5 rounded-full bg-slate-950 animate-ping';
+                laserPowerText.textContent = 'LASER: ĐANG BẬT';
+            } else {
+                btnLaserPower.className = 'flex items-center gap-2.5 px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-lg active:scale-95 bg-slate-800 text-slate-300 border border-slate-700';
+                laserLed.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+                laserPowerText.textContent = 'LASER: ĐÃ TẮT';
+            }
+
+            // Cập nhật nút chế độ Sóng vs Hạt
+            if (state.mode === 'wave') {
+                btnWaveMode.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-sky-500 text-slate-950 shadow';
+                btnParticleMode.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white';
+            } else {
+                btnParticleMode.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-amber-500 text-slate-950 shadow';
+                btnWaveMode.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white';
+            }
+
+            // Cập nhật Badge & Hộp giải thích hiện tượng
+            if (!state.laserOn) {
+                spotIndicator.textContent = 'NGUỒN TẮT';
+                spotIndicator.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-slate-800 text-slate-400 border border-slate-700';
+                physicsStatusBox.innerHTML = `<strong class="text-slate-300 block mb-1">Trạng thái:</strong> Nguồn phát tia Laser đang tắt. Nhấn nút <strong class="text-emerald-400">"LASER: ĐÃ TẮT"</strong> ở góc trên để kích hoạt thí nghiệm.`;
+            } else if (state.mode === 'particle') {
+                spotIndicator.textContent = 'BÓNG TỐI ĐẶC';
+                spotIndicator.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30';
+                physicsStatusBox.innerHTML = `<strong class="text-amber-400 block mb-1">Dự đoán cổ điển (Thuyết Hạt / Quang hình học):</strong> Các hạt ánh sáng đi thẳng bị quả bóng chặn lại hoàn toàn, tạo ra vùng bóng đen tuyệt đối trên tấm bảng — không hề có điểm sáng ở tâm.`;
+            } else if (absOff >= 1.2) {
+                spotIndicator.textContent = 'VẾT SÁNG TẮT';
+                spotIndicator.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                physicsStatusBox.innerHTML = `<strong class="text-amber-400 block mb-1">Mất đối xứng đồng trục:</strong> Tia laser đang lệch tâm <strong>${state.offset.toFixed(1)} mm</strong>. Sóng nhiễu xạ từ các phía mép quả bóng không còn đến tâm bảng cùng pha nữa khiến <strong>Vết sáng Arago</strong> bị phá vỡ và mờ tắt.`;
+            } else {
+                spotIndicator.textContent = 'TÂM SÁNG CHÓI';
+                spotIndicator.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                physicsStatusBox.innerHTML = `<strong class="text-emerald-400 block mb-1">Thí nghiệm thực tế (Quang học Sóng):</strong> Chùm laser chiếu đồng trục qua quả bóng. Các sóng nhiễu xạ từ chu vi quả bóng truyền tới tâm bảng với quang trình bằng nhau, giao thoa tăng cường tạo thành <strong class="text-white">Vết sáng Arago</strong> rực rỡ ngay giữa bóng tối.`;
+            }
+
+            // Vẽ lại màn hứng cận cảnh ngay lập tức
+            drawZoomedScreen();
+        }
+
+        /**
+         * Vòng lặp hoạt ảnh 60fps cho không gian thí nghiệm 3D
+         */
+        function animate() {
+            if (state.laserOn) {
+                state.time += 1;
+            }
+            drawLab3DScene();
+            requestAnimationFrame(animate);
+        }
+
+        // Lắng nghe sự kiện điều khiển
+        btnLaserPower.addEventListener('click', () => {
+            state.laserOn = !state.laserOn;
+            updateUI();
+        });
+
+        btnWaveMode.addEventListener('click', () => {
+            state.mode = 'wave';
+            updateUI();
+        });
+
+        btnParticleMode.addEventListener('click', () => {
+            state.mode = 'particle';
+            updateUI();
+        });
+
+        lambdaSlider.addEventListener('input', (e) => {
+            state.lambda = parseInt(e.target.value, 10);
+            updateUI();
+        });
+
+        diameterSlider.addEventListener('input', (e) => {
+            state.diameter = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        distanceSlider.addEventListener('input', (e) => {
+            state.distance = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        offsetSlider.addEventListener('input', (e) => {
+            state.offset = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        btnReset.addEventListener('click', () => {
+            state.laserOn = true;
+            state.lambda = 532;
+            state.diameter = 6.0;
+            state.distance = 2.5;
+            state.offset = 0.0;
+            state.mode = 'wave';
+
+            lambdaSlider.value = 532;
+            diameterSlider.value = 6.0;
+            distanceSlider.value = 2.5;
+            offsetSlider.value = 0.0;
+
+            updateUI();
+        });
+
+        window.addEventListener('resize', () => {
+            resizeAllCanvases();
+            updateUI();
+        });
+
+        window.onload = function () {
+            resizeAllCanvases();
+            updateUI();
+            animate();
+        };
+    </script>
+</body>
+</html>

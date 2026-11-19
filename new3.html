@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô phỏng Thí nghiệm Sóng dừng Điện từ – Heinrich Hertz (1888)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #04060b;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        /* Thanh trượt vật lý tùy chỉnh */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--thumb-color, #38bdf8);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 12px var(--thumb-color, rgba(56, 189, 248, 0.85));
+            border: 2px solid #ffffff;
+            transition: transform 0.12s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.18);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 999px;
+        }
+        .glass-panel {
+            background: rgba(11, 17, 30, 0.85);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(51, 65, 85, 0.55);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-200">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800/80 bg-[#070b14]/90 sticky top-0 z-30 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 text-[11px] font-mono font-semibold uppercase tracking-wider rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                            Phòng thí nghiệm Điện từ học
+                        </span>
+                        <span class="text-xs text-slate-400 font-mono">Heinrich Hertz (1888)</span>
+                    </div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white mt-0.5">
+                        Thí nghiệm Sóng dừng Điện từ bằng Phản xạ: <span class="bg-gradient-to-r from-amber-300 via-yellow-300 to-emerald-400 bg-clip-text text-transparent">Đo bước sóng vô tuyến bằng vòng cộng hưởng</span>
+                    </h1>
+                </div>
+
+                <!-- Thanh công cụ thao tác nhanh -->
+                <div class="flex flex-wrap items-center gap-2 self-start lg:self-center">
+                    <button id="btnTxPower" class="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-lg active:scale-95 bg-emerald-500 text-slate-950 shadow-emerald-500/25">
+                        <span id="txLed" class="w-2 h-2 rounded-full bg-slate-950 animate-ping"></span>
+                        <span id="txPowerText">MÁY PHÁT: BẬT</span>
+                    </button>
+
+                    <button id="btnReflector" class="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-sky-500/20 text-sky-300 border-sky-500/50">
+                        <span id="reflectorIcon" class="w-2 h-2 rounded-full bg-sky-400"></span>
+                        <span id="reflectorText">Tấm phản xạ kẽm: LẮP</span>
+                    </button>
+
+                    <button id="btnComponents" class="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-slate-700">
+                        <span id="compIcon" class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                        <span id="compText">Sóng thành phần: HIỆN</span>
+                    </button>
+
+                    <button id="btnAudio" class="flex items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-slate-800/90 hover:bg-slate-700 text-slate-300 border-slate-700" title="Bật/Tắt âm thanh tia lửa điện">
+                        <span id="audioIcon">🔇</span>
+                        <span id="audioText">Tiếng lửa: TẮT</span>
+                    </button>
+
+                    <button id="btnReset" class="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs sm:text-sm font-medium transition active:scale-95">
+                        Đặt lại
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Lab Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
+
+        <!-- Khung mô phỏng chính: Bàn thí nghiệm Hertz & Vòng dò cộng hưởng -->
+        <div class="glass-panel rounded-2xl p-4 shadow-2xl space-y-3">
+            <!-- Thanh chú thích trực quan & Trạng thái đo đạc thời gian thực -->
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-3 text-xs">
+                    <span class="font-semibold text-white flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                        Bàn thí nghiệm Hertz (1888)
+                    </span>
+                    <div class="flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-300 bg-slate-950/75 px-3 py-1 rounded-lg border border-slate-800">
+                        <span class="flex items-center gap-1.5"><i class="w-3 h-0.5 bg-cyan-400 inline-block"></i> Sóng tới</span>
+                        <span class="flex items-center gap-1.5"><i class="w-3 h-0.5 bg-rose-400 inline-block"></i> Sóng phản xạ (đảo pha π)</span>
+                        <span class="flex items-center gap-1.5"><i class="w-3 h-1 bg-amber-300 inline-block rounded"></i> Sóng dừng tổng hợp</span>
+                        <span class="flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-rose-500 inline-block"></i> Nút sóng (N)</span>
+                        <span class="flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></i> Bụng sóng (A)</span>
+                    </div>
+                </div>
+
+                <div class="text-xs text-slate-400 font-mono">
+                    💡 Kéo thả trực tiếp <span class="text-amber-300 font-semibold">Vòng dây đồng dò sóng</span> trên bàn thí nghiệm để dò Nút & Bụng
+                </div>
+            </div>
+
+            <!-- Canvas Bàn thí nghiệm Hertz (Responsive HiDPI) -->
+            <div class="relative w-full h-[380px] sm:h-[450px] rounded-xl overflow-hidden border border-slate-800 bg-[#03050a]">
+                <canvas id="hertzCanvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+
+                <!-- HUD góc trên trái: Thông số bước sóng & khoảng cách nút -->
+                <div class="absolute top-3 left-3 flex flex-wrap gap-2 pointer-events-none">
+                    <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-slate-800 backdrop-blur-md text-[11px] font-mono">
+                        <span class="text-slate-400">Bước sóng λ = c/f:</span>
+                        <span id="hudLambda" class="text-cyan-400 font-bold ml-1">3.00 m</span>
+                    </div>
+                    <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-slate-800 backdrop-blur-md text-[11px] font-mono">
+                        <span class="text-slate-400">Khoảng cách Nút–Nút (λ/2):</span>
+                        <span id="hudHalfLambda" class="text-amber-300 font-bold ml-1">1.50 m</span>
+                    </div>
+                </div>
+
+                <!-- HUD góc trên phải: Trạng thái vòng dò cộng hưởng -->
+                <div class="absolute top-3 right-3 pointer-events-none">
+                    <div id="hudDetectorBadge" class="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 backdrop-blur-md text-[11px] font-mono font-semibold text-emerald-300">
+                        TẠI BỤNG SÓNG – ĐÁNH LỬA MẠNH
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng điều khiển tương tác & Đồng hồ đo cường độ cảm ứng thời gian thực -->
+        <section class="glass-panel rounded-2xl p-4 shadow-xl">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+
+                <!-- 1. Thanh trượt Tần số phát f (MHz) (4 cột) -->
+                <div class="lg:col-span-4 bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="freqSlider" class="text-xs font-semibold text-slate-200">1. Tần số máy phát Hertz (f)</label>
+                        <span id="valFreq" class="text-xs font-mono font-bold text-cyan-400">100 MHz (λ = 3.00 m)</span>
+                    </div>
+                    <input type="range" id="freqSlider" min="50" max="150" value="100" step="1" style="--thumb-color: #22d3ee;">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>50 MHz (λ=6.0m)</span>
+                        <span>100 MHz (λ=3.0m)</span>
+                        <span>150 MHz (λ=2.0m)</span>
+                    </div>
+                </div>
+
+                <!-- 2. Thanh trượt Vị trí vòng dò x (m) (4 cột) -->
+                <div class="lg:col-span-4 bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="posSlider" class="text-xs font-semibold text-slate-200">2. Vị trí vòng dò trên thước (x)</label>
+                        <span id="valPos" class="text-xs font-mono font-bold text-amber-300">x = 7.25 m</span>
+                    </div>
+                    <input type="range" id="posSlider" min="0.50" max="8.00" value="7.25" step="0.01" style="--thumb-color: #fbbf24;">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>0.50 m (Gần máy phát)</span>
+                        <span>4.25 m</span>
+                        <span>8.00 m (Sát tấm kẽm)</span>
+                    </div>
+                </div>
+
+                <!-- 3. Đồng hồ đo Cường độ cảm ứng tại khe hở vòng dò (%) (4 cột) -->
+                <div class="lg:col-span-4 bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90 flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-semibold text-slate-200">3. Cường độ cảm ứng khe dò</span>
+                        <span id="valSignal" class="text-sm font-mono font-bold text-emerald-400">100%</span>
+                    </div>
+                    <!-- Thanh mức tín hiệu LED phòng thí nghiệm -->
+                    <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                        <div id="signalBar" class="h-full rounded-full transition-all duration-75 bg-gradient-to-r from-sky-400 via-emerald-400 to-amber-300" style="width: 100%;"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-400 font-mono mt-1.5">
+                        <span id="distToReflectorText">Cách tấm phản xạ: 0.75 m (λ/4)</span>
+                        <span id="sparkStatusShort" class="text-emerald-400 font-semibold">TIA LỬA: MẠNH</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /**
+         * MÔ PHỎNG PHÒNG THÍ NGHIỆM ĐIỆN TỪ HỌC: THÍ NGHIỆM SÓNG DỪNG CỦA HEINRICH HERTZ (1888)
+         * Cơ sở vật lý chính xác:
+         * - Tốc độ truyền sóng điện từ trong không khí: c = 3.0 * 10^8 m/s (300 m·MHz)
+         * - Tần số phát f: 50 MHz -> 150 MHz  =>  Bước sóng lambda = 300 / f: 6.00 m -> 2.00 m
+         * - Trục không gian bàn thí nghiệm: x từ 0.0 m (tại khe phát Hertz) đến L = 8.0 m (tại tấm kẽm phản xạ)
+         * - Điều kiện biên tại tấm kim loại phản xạ lý tưởng (x = L = 8.0 m):
+         *   Điện trường tiếp tuyến triệt tiêu E(L, t) = 0 => Sóng phản xạ đảo pha pi (180 độ) so với sóng tới:
+         *   + Sóng tới:     E_i(x, t) = E_0 * sin(k*x - omega*t)
+         *   + Sóng phản xạ: E_r(x, t) = -E_0 * sin(k*(2L - x) - omega*t)
+         *   + Sóng dừng tổng hợp: E(x, t) = E_i + E_r = -2*E_0 * sin(k*(L - x)) * cos(omega*t - k*L)
+         * - Vị trí các Nút sóng (E = 0): L - x = n * (lambda / 2)   (n = 0, 1, 2, ...)
+         * - Vị trí các Bụng sóng (|E| = max): L - x = (2n + 1) * (lambda / 4)
+         * - Khi tháo tấm phản xạ (reflectorOn = false): Chỉ tồn tại sóng chạy E_i(x, t), biên độ không đổi
+         *   dọc theo trục x, vòng dây dò đánh lửa đều ở mọi vị trí (không có nút và bụng cố định).
+         */
+
+        const REFLECTOR_X_M = 8.00; // Vị trí cố định của tấm phản xạ kim loại kẽm tính từ nguồn phát (m)
+        const MIN_DETECTOR_X = 0.50;
+        const MAX_DETECTOR_X = 8.00;
+
+        const state = {
+            txOn: true,             // Nguồn phát cao áp Ruhmkorff Bật/Tắt
+            freqMHz: 100,           // Tần số phát f (50 - 150 MHz) => lambda = 300 / 100 = 3.00 m
+            detectorX: 7.25,        // Vị trí vòng dây dò (m). Tại f=100MHz (lambda=3m), L - x = 0.75m = lambda/4 (Bụng sóng số 1!)
+            reflectorOn: true,      // Lắp / Tháo tấm phản xạ kim loại kẽm
+            showComponents: true,   // Hiển thị / Ẩn sóng tới & sóng phản xạ
+            audioOn: false,         // Tùy chọn âm thanh tách tách tia lửa điện (Web Audio API)
+            isDragging: false,      // Trạng thái kéo thả vòng dò trên Canvas
+            phase: 0                // Pha dao động sóng omega*t
+        };
+
+        // Canvas & Context
+        const canvas = document.getElementById('hertzCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Elements
+        const btnTxPower = document.getElementById('btnTxPower');
+        const txLed = document.getElementById('txLed');
+        const txPowerText = document.getElementById('txPowerText');
+
+        const btnReflector = document.getElementById('btnReflector');
+        const reflectorIcon = document.getElementById('reflectorIcon');
+        const reflectorText = document.getElementById('reflectorText');
+
+        const btnComponents = document.getElementById('btnComponents');
+        const compIcon = document.getElementById('compIcon');
+        const compText = document.getElementById('compText');
+
+        const btnAudio = document.getElementById('btnAudio');
+        const audioIcon = document.getElementById('audioIcon');
+        const audioText = document.getElementById('audioText');
+
+        const btnReset = document.getElementById('btnReset');
+
+        const freqSlider = document.getElementById('freqSlider');
+        const posSlider = document.getElementById('posSlider');
+
+        const valFreq = document.getElementById('valFreq');
+        const valPos = document.getElementById('valPos');
+        const valSignal = document.getElementById('valSignal');
+        const signalBar = document.getElementById('signalBar');
+        const distToReflectorText = document.getElementById('distToReflectorText');
+        const sparkStatusShort = document.getElementById('sparkStatusShort');
+
+        const hudLambda = document.getElementById('hudLambda');
+        const hudHalfLambda = document.getElementById('hudHalfLambda');
+        const hudDetectorBadge = document.getElementById('hudDetectorBadge');
+
+        // Hệ thống âm thanh Web Audio API mô phỏng tiếng nổ tách điện cao áp chân thực
+        let audioCtx = null;
+        let lastSparkSoundTime = 0;
+
+        function playSparkCrack(intensity) {
+            if (!state.audioOn || !state.txOn || intensity < 0.15) return;
+            const now = performance.now();
+            // Tần suất tiếng tách tỷ lệ thuận với cường độ cảm ứng
+            const minInterval = 65 + (1 - intensity) * 160;
+            if (now - lastSparkSoundTime < minInterval) return;
+            lastSparkSoundTime = now;
+
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                // Tạo xung nhiễu trắng cực ngắn (14ms) qua bộ lọc thông cao mô phỏng tia lửa điện
+                const duration = 0.014;
+                const bufferSize = Math.floor(audioCtx.sampleRate * duration);
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    const env = Math.exp(-i / (bufferSize * 0.25));
+                    data[i] = (Math.random() * 2 - 1) * env;
+                }
+
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 2400 + Math.random() * 1200;
+                filter.Q.value = 1.8;
+
+                const gain = audioCtx.createGain();
+                gain.gain.value = 0.06 * intensity;
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start();
+            } catch (e) {
+                // Bỏ qua nếu trình duyệt chặn autoplay audio
+            }
+        }
+
+        /**
+         * Tính bước sóng lambda (m) từ tần số f (MHz)
+         */
+        function getWavelength() {
+            return 300.0 / state.freqMHz; // c = 300 m·MHz
+        }
+
+        /**
+         * Tính cường độ điện trường / tín hiệu cảm ứng chuẩn hóa (0.0 -> 1.0) tại vị trí x (m)
+         */
+        function getDetectorSignal(x_m) {
+            if (!state.txOn) return 0;
+
+            // Khi tháo tấm phản xạ: chỉ có sóng chạy truyền đi, biên độ đồng đều mọi vị trí
+            if (!state.reflectorOn) {
+                return 0.65;
+            }
+
+            // Khi có tấm phản xạ tại x = L = 8.0 m:
+            // Biên độ sóng dừng chuẩn hóa A(x) = |sin(k * (L - x))| với k = 2*pi / lambda
+            const lambda = getWavelength();
+            const k = (2 * Math.PI) / lambda;
+            const distFromReflector = Math.max(0, REFLECTOR_X_M - x_m);
+            const amp = Math.abs(Math.sin(k * distFromReflector));
+            return amp;
+        }
+
+        /**
+         * Lấy hệ tọa độ hình học trên Canvas để ánh xạ chính xác giữa mét (m) và pixel (px)
+         */
+        function getBenchMetrics(w, h) {
+            const txX = Math.max(105, w * 0.13);       // Vị trí khe phát sóng Hertz (x = 0 m)
+            const refX = w - Math.max(68, w * 0.085); // Vị trí tấm phản xạ kẽm (x = 8.0 m)
+            const trackW = refX - txX;
+            const waveAxisY = h * 0.42;               // Trục truyền sóng chính
+            const railY = h * 0.77;                   // Đường ray thước đo & giá trượt vòng dò
+            const tableTopY = h * 0.73;               // Mặt bàn phòng thí nghiệm
+
+            const xToPx = (x_m) => txX + (x_m / REFLECTOR_X_M) * trackW;
+            const pxToX = (px) => ((px - txX) / trackW) * REFLECTOR_X_M;
+
+            return { txX, refX, trackW, waveAxisY, railY, tableTopY, xToPx, pxToX };
+        }
+
+        /**
+         * Điều chỉnh kích thước Canvas chuẩn Retina / HiDPI
+         */
+        function resizeCanvas() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                canvas.width = Math.round(rect.width * dpr);
+                canvas.height = Math.round(rect.height * dpr);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+        }
+
+        /**
+         * Vẽ tia lửa điện cao áp răng cưa nhiều nhánh chân thực (Spark Gap Arc)
+         */
+        function drawElectricSpark(ctx, x1, y1, x2, y2, intensity, coreColor = '#ffffff', glowColor = '#38bdf8') {
+            if (intensity <= 0.08) return;
+
+            ctx.save();
+            // Quầng hào quang phát sáng xung quanh khe đánh lửa
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            const glowR = 14 + intensity * 24;
+            const radGrad = ctx.createRadialGradient(midX, midY, 1, midX, midY, glowR);
+            radGrad.addColorStop(0, `rgba(255, 255, 255, ${0.85 * intensity})`);
+            radGrad.addColorStop(0.35, `rgba(56, 189, 248, ${0.55 * intensity})`);
+            radGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+            ctx.fillStyle = radGrad;
+            ctx.beginPath();
+            ctx.arc(midX, midY, glowR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Vẽ 2 tia hồ quang răng cưa ngẫu nhiên mỗi khung hình
+            const bolts = intensity > 0.55 ? 2 : 1;
+            for (let b = 0; b < bolts; b++) {
+                const segments = 6;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                for (let i = 1; i < segments; i++) {
+                    const t = i / segments;
+                    const jitter = (Math.random() - 0.5) * (6 + intensity * 8);
+                    const px = x1 + (x2 - x1) * t + jitter * 0.4;
+                    const py = y1 + (y2 - y1) * t + jitter;
+                    ctx.lineTo(px, py);
+                }
+                ctx.lineTo(x2, y2);
+
+                ctx.strokeStyle = glowColor;
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = 12 * intensity;
+                ctx.lineWidth = 1.5 + intensity * 2.2;
+                ctx.stroke();
+
+                ctx.strokeStyle = coreColor;
+                ctx.lineWidth = 0.8 + intensity * 1.1;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Vẽ toàn bộ khung cảnh thí nghiệm Hertz 1888
+         */
+        function drawScene() {
+            const w = canvas.clientWidth;
+            const h = canvas.clientHeight;
+            ctx.clearRect(0, 0, w, h);
+
+            const m = getBenchMetrics(w, h);
+            const lambda = getWavelength();
+            const k = (2 * Math.PI) / lambda;
+            const waveAmpPx = Math.min(76, h * 0.175); // Biên độ cực đại của sóng dừng (2 * E0)
+
+            // 1. NỀN PHÒNG THÍ NGHIỆM & MẶT BÀN QUANG HỌC
+            const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.4, 30, w * 0.5, h * 0.5, w * 0.75);
+            bgGrad.addColorStop(0, '#0b1221');
+            bgGrad.addColorStop(1, '#03050a');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Lưới tọa độ kỹ thuật mờ phía sau vùng sóng
+            ctx.strokeStyle = 'rgba(30, 41, 59, 0.35)';
+            ctx.lineWidth = 1;
+            for (let gx = m.txX; gx <= m.refX; gx += m.trackW / 16) {
+                ctx.beginPath();
+                ctx.moveTo(gx, m.waveAxisY - waveAmpPx - 22);
+                ctx.lineTo(gx, m.waveAxisY + waveAmpPx + 22);
+                ctx.stroke();
+            }
+
+            // Trục cân bằng điện trường E = 0
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(m.txX, m.waveAxisY);
+            ctx.lineTo(m.refX, m.waveAxisY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Mặt bàn thí nghiệm gỗ tối / thanh ray đo độ dài
+            const tableGrad = ctx.createLinearGradient(0, m.tableTopY, 0, h);
+            tableGrad.addColorStop(0, '#111827');
+            tableGrad.addColorStop(0.25, '#0b101b');
+            tableGrad.addColorStop(1, '#05070d');
+            ctx.fillStyle = tableGrad;
+            ctx.fillRect(0, m.tableTopY, w, h - m.tableTopY);
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(0, m.tableTopY);
+            ctx.lineTo(w, m.tableTopY);
+            ctx.stroke();
+
+            // 2. THƯỚC ĐO KHOẢNG CÁCH (0 m -> 8.0 m) DỌC THEO BÀN THÍ NGHIỆM
+            drawRulerTrack(ctx, m);
+
+            // 3. VẼ TRƯỜNG SÓNG ĐIỆN TỪ (SÓNG TỚI, SÓNG PHẢN XẠ, SÓNG DỪNG, NÚT & BỤNG)
+            if (state.txOn) {
+                drawElectromagneticWaves(ctx, m, lambda, k, waveAmpPx);
+            }
+
+            // 4. VẼ MÁY PHÁT SÓNG HERTZ (CUỘN CẢM RUHMKORFF & HAI QUẢ CẦU ĐỒNG PHÁT TIA LỬA)
+            drawHertzTransmitter(ctx, m);
+
+            // 5. VẼ TẤM KIM LOẠI PHẢN XẠ LỚN BẰNG KẼM (ZINC REFLECTOR SHEET)
+            drawZincReflector(ctx, m);
+
+            // 6. VẼ VÒNG DÂY THU SÓNG CỘNG HƯỞNG CỦA HERTZ (CÓ THỂ KÉO THẢ)
+            drawDetectorRing(ctx, m);
+        }
+
+        /**
+         * Vẽ thanh ray trượt và thước đo mét (0.0m -> 8.0m) trên mặt bàn thí nghiệm
+         */
+        function drawRulerTrack(ctx, m) {
+            const rulerY = m.railY + 18;
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(m.txX - 10, rulerY, m.trackW + 20, 22, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+
+            // Vạch chia mỗi 0.25m, số mỗi 1.0m
+            for (let xm = 0; xm <= REFLECTOR_X_M + 0.001; xm += 0.25) {
+                const px = m.xToPx(xm);
+                const isMeter = Math.abs(xm - Math.round(xm)) < 0.01;
+                const isHalf = Math.abs((xm * 2) - Math.round(xm * 2)) < 0.01;
+
+                ctx.strokeStyle = isMeter ? '#94a3b8' : '#475569';
+                ctx.beginPath();
+                ctx.moveTo(px, rulerY);
+                ctx.lineTo(px, rulerY + (isMeter ? 8 : isHalf ? 5 : 3));
+                ctx.stroke();
+
+                if (isMeter) {
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.fillText(`${xm.toFixed(0)}m`, px, rulerY + 18);
+                }
+            }
+        }
+
+        /**
+         * Vẽ Sóng tới, Sóng phản xạ đảo pha, Sóng dừng tổng hợp, Đường bao biên độ, Nút sóng & Bụng sóng
+         */
+        function drawElectromagneticWaves(ctx, m, lambda, k, maxAmpPx) {
+            const singleAmp = maxAmpPx * 0.5; // Biên độ từng sóng thành phần E_0
+            const steps = Math.max(240, Math.floor(m.trackW / 2));
+
+            // A. NẾU BẬT HIỂN THỊ SÓNG THÀNH PHẦN: VẼ SÓNG TỚI & SÓNG PHẢN XẠ
+            if (state.showComponents) {
+                // 1. Sóng tới truyền từ trái sang phải (màu xanh cyan): E_i(x, t) = E_0 * sin(k*x - phase)
+                ctx.save();
+                ctx.strokeStyle = 'rgba(34, 211, 238, 0.72)';
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                for (let i = 0; i <= steps; i++) {
+                    const xm = (i / steps) * REFLECTOR_X_M;
+                    const px = m.xToPx(xm);
+                    const yi = singleAmp * Math.sin(k * xm - state.phase);
+                    const py = m.waveAxisY - yi;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+
+                // Mũi tên chỉ hướng truyền sóng tới (sang phải)
+                drawWaveDirectionArrow(ctx, m.xToPx(2.1), m.waveAxisY - maxAmpPx - 14, true, '#22d3ee', 'Sóng tới →');
+
+                // 2. Sóng phản xạ đảo pha pi tại tấm kim loại (x = L) truyền từ phải sang trái (màu hồng/cam):
+                // E_r(x, t) = -E_0 * sin(k*(2L - x) - phase)
+                if (state.reflectorOn) {
+                    ctx.strokeStyle = 'rgba(251, 113, 133, 0.72)';
+                    ctx.lineWidth = 1.6;
+                    ctx.setLineDash([5, 4]);
+                    ctx.beginPath();
+                    for (let i = 0; i <= steps; i++) {
+                        const xm = (i / steps) * REFLECTOR_X_M;
+                        const px = m.xToPx(xm);
+                        const yr = -singleAmp * Math.sin(k * (2 * REFLECTOR_X_M - xm) - state.phase);
+                        const py = m.waveAxisY - yr;
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Mũi tên chỉ hướng truyền sóng phản xạ (sang trái)
+                    drawWaveDirectionArrow(ctx, m.xToPx(5.9), m.waveAxisY - maxAmpPx - 14, false, '#fb7185', '← Sóng phản xạ');
+                }
+                ctx.restore();
+            }
+
+            // B. NẾU CÓ TẤM PHẢN XẠ: VẼ ĐƯỜNG BAO BIÊN ĐỘ (ENVELOPE) CỦA SÓNG DỪNG
+            if (state.reflectorOn) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.28)';
+                ctx.lineWidth = 1.2;
+                ctx.setLineDash([4, 4]);
+
+                // Nhánh bao trên +2*E_0*|sin(k*(L-x))|
+                ctx.beginPath();
+                for (let i = 0; i <= steps; i++) {
+                    const xm = (i / steps) * REFLECTOR_X_M;
+                    const px = m.xToPx(xm);
+                    const env = maxAmpPx * Math.abs(Math.sin(k * (REFLECTOR_X_M - xm)));
+                    const py = m.waveAxisY - env;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+
+                // Nhánh bao dưới -2*E_0*|sin(k*(L-x))|
+                ctx.beginPath();
+                for (let i = 0; i <= steps; i++) {
+                    const xm = (i / steps) * REFLECTOR_X_M;
+                    const px = m.xToPx(xm);
+                    const env = maxAmpPx * Math.abs(Math.sin(k * (REFLECTOR_X_M - xm)));
+                    const py = m.waveAxisY + env;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+
+            // C. VẼ SÓNG TỔNG HỢP (SÓNG DỪNG RỰC SÁNG MÀU VÀNG HỔ PHÁCH / XANH NGỌC)
+            ctx.save();
+            ctx.strokeStyle = state.reflectorOn ? '#fbbf24' : '#34d399';
+            ctx.shadowColor = state.reflectorOn ? 'rgba(251, 191, 36, 0.75)' : 'rgba(52, 211, 153, 0.75)';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 3.0;
+
+            ctx.beginPath();
+            for (let i = 0; i <= steps; i++) {
+                const xm = (i / steps) * REFLECTOR_X_M;
+                const px = m.xToPx(xm);
+                const yi = singleAmp * Math.sin(k * xm - state.phase);
+                const yr = state.reflectorOn ? -singleAmp * Math.sin(k * (2 * REFLECTOR_X_M - xm) - state.phase) : 0;
+                const yTotal = yi + yr;
+                const py = m.waveAxisY - yTotal;
+
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            // D. ĐÁNH DẤU RÕ CÁC ĐIỂM NÚT SÓNG (NODES) VÀ BỤNG SÓNG (ANTINODES) KHI CÓ SÓNG DỪNG
+            if (state.reflectorOn) {
+                const halfLambda = lambda / 2.0;
+                const quarterLambda = lambda / 4.0;
+
+                // 1. Đánh dấu các Nút sóng (Nodes): L - x = n * (lambda/2)
+                for (let n = 0; n * halfLambda <= REFLECTOR_X_M + 0.001; n++) {
+                    const nodeX = REFLECTOR_X_M - n * halfLambda;
+                    if (nodeX < 0.15) continue;
+                    const px = m.xToPx(nodeX);
+
+                    // Chấm tròn đỏ đánh dấu nút sóng tại trục E=0
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(px, m.waveAxisY, 4.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Nhãn Nút sóng (N)
+                    ctx.fillStyle = '#fda4af';
+                    ctx.font = '600 10px "JetBrains Mono", monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`N${n}`, px, m.waveAxisY + 16);
+                }
+
+                // 2. Đánh dấu các Bụng sóng (Antinodes): L - x = (2n + 1) * (lambda/4)
+                for (let n = 0; (2 * n + 1) * quarterLambda <= REFLECTOR_X_M + 0.001; n++) {
+                    const antiX = REFLECTOR_X_M - (2 * n + 1) * quarterLambda;
+                    if (antiX < 0.15) continue;
+                    const px = m.xToPx(antiX);
+
+                    // Đường gióng dọc mờ từ đỉnh bụng sóng xuống trục
+                    ctx.strokeStyle = 'rgba(52, 211, 153, 0.25)';
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(px, m.waveAxisY - maxAmpPx);
+                    ctx.lineTo(px, m.waveAxisY + maxAmpPx);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Điểm đánh dấu bụng sóng ở biên trên
+                    ctx.fillStyle = '#10b981';
+                    ctx.beginPath();
+                    ctx.arc(px, m.waveAxisY - maxAmpPx, 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#6ee7b7';
+                    ctx.font = '600 10px "JetBrains Mono", monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`A${n + 1}`, px, m.waveAxisY - maxAmpPx - 7);
+                }
+            }
+        }
+
+        /**
+         * Vẽ nhãn mũi tên chỉ hướng truyền sóng tới / sóng phản xạ
+         */
+        function drawWaveDirectionArrow(ctx, x, y, toRight, color, text) {
+            ctx.fillStyle = color;
+            ctx.font = '600 10px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(text, x, y);
+        }
+
+        /**
+         * Vẽ Máy phát sóng Hertz (1888): Cuộn cảm cao áp Ruhmkorff + hai thanh lưỡng cực + hai quả cầu đồng đánh tia lửa
+         */
+        function drawHertzTransmitter(ctx, m) {
+            const x = m.txX;
+            const y = m.waveAxisY;
+            const baseY = m.tableTopY + 12;
+
+            // 1. Cuộn cảm cao áp Ruhmkorff đặt bên trái máy phát
+            const coilW = 54;
+            const coilH = 34;
+            const coilX = x - coilW - 18;
+            const coilY = baseY - coilH;
+
+            // Đế gỗ cuộn cảm
+            ctx.fillStyle = '#451a03';
+            ctx.fillRect(coilX - 4, baseY - 5, coilW + 8, 6);
+
+            // Lõi cuộn dây đồng Ruhmkorff
+            const coilGrad = ctx.createLinearGradient(0, coilY, 0, baseY - 5);
+            coilGrad.addColorStop(0, '#b45309');
+            coilGrad.addColorStop(0.4, '#d97706');
+            coilGrad.addColorStop(1, '#78350f');
+            ctx.fillStyle = coilGrad;
+            ctx.beginPath();
+            ctx.roundRect(coilX, coilY, coilW, coilH - 5, 4);
+            ctx.fill();
+
+            // Hai đầu bích cách điện ebonite đen của cuộn cảm
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(coilX, coilY - 2, 6, coilH - 1);
+            ctx.fillRect(coilX + coilW - 6, coilY - 2, 6, coilH - 1);
+
+            // Dây dẫn cao áp nối từ cuộn cảm lên hai cực phát lưỡng cực Hertz
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(coilX + 12, coilY);
+            ctx.quadraticCurveTo(coilX + 12, y - 34, x - 4, y - 34);
+            ctx.moveTo(coilX + coilW - 12, coilY);
+            ctx.quadraticCurveTo(coilX + coilW - 12, y + 34, x - 4, y + 34);
+            ctx.stroke();
+
+            // 2. Trụ sứ cách điện đỡ lưỡng cực phát Hertz
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(x - 16, y - 62, 5, baseY - (y - 62));
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(x - 24, baseY - 4, 22, 6);
+
+            // 3. Hai bản tụ kim loại vuông & thanh đồng lưỡng cực thẳng đứng
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(x - 10, y - 66, 14, 14); // Bản tụ trên
+            ctx.fillRect(x - 10, y + 52, 14, 14); // Bản tụ dưới
+
+            // Thanh dẫn đồng
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(x, y - 52);
+            ctx.lineTo(x, y - 11);
+            ctx.moveTo(x, y + 11);
+            ctx.lineTo(x, y + 52);
+            ctx.stroke();
+
+            // 4. Hai quả cầu đồng đánh tia lửa điện (Spark Gap) tại tâm y
+            const drawBrassSphere = (sx, sy, r) => {
+                const g = ctx.createRadialGradient(sx - r * 0.3, sy - r * 0.3, 1, sx, sy, r);
+                g.addColorStop(0, '#fef08a');
+                g.addColorStop(0.5, '#d97706');
+                g.addColorStop(1, '#78350f');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(sx, sy, r, 0, Math.PI * 2);
+                ctx.fill();
+            };
+            drawBrassSphere(x, y - 10, 6);
+            drawBrassSphere(x, y + 10, 6);
+
+            // Tia lửa điện cao áp nhảy liên tục giữa hai quả cầu đồng khi máy phát BẬT
+            if (state.txOn) {
+                drawElectricSpark(ctx, x, y - 5, x, y + 5, 1.0, '#ffffff', '#38bdf8');
+            }
+
+            // Nhãn thiết bị
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '600 11px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Máy phát Hertz', coilX + coilW / 2 + 8, baseY + 18);
+        }
+
+        /**
+         * Vẽ Tấm kim loại phản xạ lớn bằng kẽm (Zinc Reflector Sheet) đặt vuông góc ở đầu bên phải
+         */
+        function drawZincReflector(ctx, m) {
+            const x = m.refX;
+            const topY = m.waveAxisY - 105;
+            const botY = m.tableTopY + 12;
+
+            if (!state.reflectorOn) {
+                // Vẽ đường viền nét đứt mờ khi tấm phản xạ đang được tháo ra
+                ctx.save();
+                ctx.strokeStyle = 'rgba(100, 116, 139, 0.35)';
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(x - 4, topY, 10, botY - topY);
+                ctx.restore();
+
+                ctx.fillStyle = '#64748b';
+                ctx.font = '500 11px "Inter", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Đã tháo tấm phản xạ', x, botY + 18);
+                return;
+            }
+
+            // Tấm kẽm kim loại phối cảnh 3D sáng bóng
+            const sheetW = 12;
+            const skew = 14;
+            const metalGrad = ctx.createLinearGradient(x - sheetW, topY, x + sheetW, botY);
+            metalGrad.addColorStop(0, '#94a3b8');
+            metalGrad.addColorStop(0.35, '#e2e8f0');
+            metalGrad.addColorStop(0.65, '#64748b');
+            metalGrad.addColorStop(1, '#334155');
+
+            ctx.fillStyle = metalGrad;
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(x - 4, topY - skew);
+            ctx.lineTo(x + sheetW, topY + skew);
+            ctx.lineTo(x + sheetW, botY + skew * 0.3);
+            ctx.lineTo(x - 4, botY - skew * 0.3);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Đế đỡ tấm phản xạ
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(x - 14, botY - 2, 32, 7);
+
+            // Nhãn thiết bị
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '600 11px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Tấm kẽm phản xạ', x + 4, botY + 18);
+        }
+
+        /**
+         * Vẽ Vòng dây đồng thu sóng cộng hưởng của Hertz (Spark-gap Detector Ring) có thể kéo thả
+         */
+        function drawDetectorRing(ctx, m) {
+            const x = m.xToPx(state.detectorX);
+            const ringCenterY = m.waveAxisY;
+            const ringR = 24;
+            const baseY = m.railY + 18;
+
+            const signal = getDetectorSignal(state.detectorX);
+
+            // 1. Con trượt kim loại trên thanh ray thước đo
+            ctx.fillStyle = state.isDragging ? '#38bdf8' : '#1e293b';
+            ctx.strokeStyle = state.isDragging ? '#ffffff' : '#64748b';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(x - 16, baseY - 12, 32, 13, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            // Mũi tên chỉ vạch thước chính xác tại tâm vòng dò
+            ctx.fillStyle = '#fbbf24';
+            ctx.beginPath();
+            ctx.moveTo(x, baseY + 1);
+            ctx.lineTo(x - 4, baseY - 5);
+            ctx.lineTo(x + 4, baseY - 5);
+            ctx.closePath();
+            ctx.fill();
+
+            // 2. Trụ cách điện đỡ vòng dây dò
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x, baseY - 12);
+            ctx.lineTo(x, ringCenterY + ringR);
+            ctx.stroke();
+
+            // 3. Vòng dây đồng cộng hưởng hở một khe nhỏ ở phía trên (góc -PI/2)
+            const gapAngle = 0.24; // Độ mở khe đánh lửa (radian)
+            ctx.save();
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 3.5;
+            ctx.shadowColor = signal > 0.3 ? `rgba(251, 191, 36, ${signal * 0.8})` : 'transparent';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(x, ringCenterY, ringR, -Math.PI / 2 + gapAngle, Math.PI * 1.5 - gapAngle);
+            ctx.stroke();
+            ctx.restore();
+
+            // Hai đầu bi đồng nhỏ ở khe hở vòng dò
+            const gapY = ringCenterY - ringR;
+            const gapHalfW = ringR * Math.sin(gapAngle);
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(x - gapHalfW, gapY, 2.5, 0, Math.PI * 2);
+            ctx.arc(x + gapHalfW, gapY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 4. HIỆU ỨNG TIA LỬA ĐIỆN CẢM ỨNG TẠI KHE HỞ VÒNG DÒ
+            if (state.txOn && signal > 0.14) {
+                // Nhấp nháy theo pha dao động cực đại của điện trường tại x
+                const instFactor = Math.abs(Math.cos(state.phase));
+                const sparkStrength = signal * (0.45 + 0.55 * instFactor);
+                drawElectricSpark(
+                    ctx,
+                    x - gapHalfW + 1, gapY,
+                    x + gapHalfW - 1, gapY,
+                    sparkStrength,
+                    '#ffffff',
+                    '#fbbf24'
+                );
+                playSparkCrack(signal);
+            }
+
+            // Nhãn "Vòng dò (kéo thả)" phía trên vòng dây
+            ctx.fillStyle = state.isDragging ? '#38bdf8' : '#fbbf24';
+            ctx.font = '600 11px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Vòng dò (${state.detectorX.toFixed(2)}m)`, x, ringCenterY - ringR - 14);
+        }
+
+        /**
+         * Cập nhật toàn bộ các chỉ số vật lý & trạng thái giao diện điều khiển
+         */
+        function updateUI() {
+            const lambda = getWavelength();
+            const halfLambda = lambda / 2.0;
+            const signal = getDetectorSignal(state.detectorX);
+            const signalPct = Math.round(signal * 100);
+            const distFromReflector = Math.max(0, REFLECTOR_X_M - state.detectorX);
+
+            // Thanh trượt & HUD bước sóng
+            valFreq.textContent = `${state.freqMHz} MHz (λ = ${lambda.toFixed(2)} m)`;
+            hudLambda.textContent = `${lambda.toFixed(2)} m`;
+            hudHalfLambda.textContent = `${halfLambda.toFixed(2)} m`;
+
+            // Thanh trượt vị trí vòng dò
+            valPos.textContent = `x = ${state.detectorX.toFixed(2)} m`;
+            posSlider.value = state.detectorX.toFixed(2);
+
+            // Thanh đo cường độ cảm ứng (%)
+            valSignal.textContent = `${signalPct}%`;
+            signalBar.style.width = `${signalPct}%`;
+
+            // Tính khoảng cách tới tấm phản xạ theo bội số lambda
+            const ratioLambda = distFromReflector / lambda;
+            distToReflectorText.textContent = `Cách tấm phản xạ: ${distFromReflector.toFixed(2)} m (${ratioLambda.toFixed(2)}λ)`;
+
+            // Cập nhật trạng thái đánh lửa & nhận diện Nút / Bụng sóng
+            if (!state.txOn) {
+                hudDetectorBadge.textContent = 'MÁY PHÁT ĐANG TẮT';
+                hudDetectorBadge.className = 'px-3 py-1 rounded-lg bg-slate-800/90 border border-slate-700 backdrop-blur-md text-[11px] font-mono font-semibold text-slate-400';
+                sparkStatusShort.textContent = 'TIA LỬA: TẮT';
+                sparkStatusShort.className = 'text-slate-400 font-semibold';
+                valSignal.className = 'text-sm font-mono font-bold text-slate-400';
+            } else if (!state.reflectorOn) {
+                hudDetectorBadge.textContent = 'SÓNG CHẠY – ĐÁNH LỬA ĐỀU MỌI NƠI';
+                hudDetectorBadge.className = 'px-3 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/40 backdrop-blur-md text-[11px] font-mono font-semibold text-cyan-300';
+                sparkStatusShort.textContent = 'TIA LỬA: ĐỀU (65%)';
+                sparkStatusShort.className = 'text-cyan-400 font-semibold';
+                valSignal.className = 'text-sm font-mono font-bold text-cyan-400';
+            } else if (signalPct >= 88) {
+                hudDetectorBadge.textContent = 'TẠI BỤNG SÓNG – ĐÁNH LỬA MẠNH';
+                hudDetectorBadge.className = 'px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 backdrop-blur-md text-[11px] font-mono font-semibold text-emerald-300';
+                sparkStatusShort.textContent = 'TIA LỬA: CỰC MẠNH';
+                sparkStatusShort.className = 'text-emerald-400 font-semibold';
+                valSignal.className = 'text-sm font-mono font-bold text-emerald-400';
+            } else if (signalPct <= 14) {
+                hudDetectorBadge.textContent = 'TẠI NÚT SÓNG – TẮT TIA LỬA';
+                hudDetectorBadge.className = 'px-3 py-1 rounded-lg bg-rose-500/20 border border-rose-500/40 backdrop-blur-md text-[11px] font-mono font-semibold text-rose-300';
+                sparkStatusShort.textContent = 'TIA LỬA: TẮT HẲN';
+                sparkStatusShort.className = 'text-rose-400 font-semibold';
+                valSignal.className = 'text-sm font-mono font-bold text-rose-400';
+            } else {
+                hudDetectorBadge.textContent = 'VÙNG TRUNG GIAN – ĐÁNH LỬA YẾU';
+                hudDetectorBadge.className = 'px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 backdrop-blur-md text-[11px] font-mono font-semibold text-amber-300';
+                sparkStatusShort.textContent = 'TIA LỬA: TRUNG BÌNH';
+                sparkStatusShort.className = 'text-amber-400 font-semibold';
+                valSignal.className = 'text-sm font-mono font-bold text-amber-300';
+            }
+
+            // Cập nhật trạng thái các nút trên Header
+            if (state.txOn) {
+                btnTxPower.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-lg active:scale-95 bg-emerald-500 text-slate-950 shadow-emerald-500/25';
+                txLed.className = 'w-2 h-2 rounded-full bg-slate-950 animate-ping';
+                txPowerText.textContent = 'MÁY PHÁT: BẬT';
+            } else {
+                btnTxPower.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-lg active:scale-95 bg-slate-800 text-slate-300 border border-slate-700';
+                txLed.className = 'w-2 h-2 rounded-full bg-rose-500';
+                txPowerText.textContent = 'MÁY PHÁT: TẮT';
+            }
+
+            if (state.reflectorOn) {
+                btnReflector.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-sky-500/20 text-sky-300 border-sky-500/50';
+                reflectorIcon.className = 'w-2 h-2 rounded-full bg-sky-400';
+                reflectorText.textContent = 'Tấm phản xạ kẽm: LẮP';
+            } else {
+                btnReflector.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-slate-800/90 text-slate-400 border-slate-700';
+                reflectorIcon.className = 'w-2 h-2 rounded-full bg-slate-500';
+                reflectorText.textContent = 'Tấm phản xạ kẽm: THÁO';
+            }
+
+            if (state.showComponents) {
+                btnComponents.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-slate-700';
+                compIcon.className = 'w-2 h-2 rounded-full bg-cyan-400';
+                compText.textContent = 'Sóng thành phần: HIỆN';
+            } else {
+                btnComponents.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-slate-900 text-slate-500 border-slate-800';
+                compIcon.className = 'w-2 h-2 rounded-full bg-slate-600';
+                compText.textContent = 'Sóng thành phần: ẨN';
+            }
+
+            if (state.audioOn) {
+                btnAudio.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-amber-500/20 text-amber-300 border-amber-500/50';
+                audioIcon.textContent = '🔊';
+                audioText.textContent = 'Tiếng lửa: BẬT';
+            } else {
+                btnAudio.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-slate-800/90 hover:bg-slate-700 text-slate-300 border-slate-700';
+                audioIcon.textContent = '🔇';
+                audioText.textContent = 'Tiếng lửa: TẮT';
+            }
+        }
+
+        /**
+         * Xử lý tương tác kéo thả trực tiếp Vòng dây dò sóng trên Canvas (Chuột & Cảm ứng)
+         */
+        function getCanvasPointerPos(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function handlePointerDown(clientX, clientY) {
+            const pt = getCanvasPointerPos(clientX, clientY);
+            const m = getBenchMetrics(canvas.clientWidth, canvas.clientHeight);
+            const detPx = m.xToPx(state.detectorX);
+
+            // Cho phép nắm kéo nếu nhấn gần cột dọc của vòng dò hoặc nhấn trực tiếp vào vùng thước đo
+            if (Math.abs(pt.x - detPx) < 42 || pt.y > m.tableTopY - 25) {
+                state.isDragging = true;
+                updateDetectorFromPx(pt.x);
+            }
+        }
+
+        function updateDetectorFromPx(px) {
+            const m = getBenchMetrics(canvas.clientWidth, canvas.clientHeight);
+            let x_m = m.pxToX(px);
+            x_m = Math.max(MIN_DETECTOR_X, Math.min(MAX_DETECTOR_X, x_m));
+
+            // Hỗ trợ hít nhẹ (magnetic snap) vào đúng vị trí Nút sóng hoặc Bụng sóng khi kéo tới rất gần
+            if (state.reflectorOn) {
+                const quarterLambda = getWavelength() / 4.0;
+                const distFromRef = REFLECTOR_X_M - x_m;
+                const nearestQuarter = Math.round(distFromRef / quarterLambda) * quarterLambda;
+                if (Math.abs(distFromRef - nearestQuarter) < 0.04) {
+                    x_m = Math.max(MIN_DETECTOR_X, Math.min(MAX_DETECTOR_X, REFLECTOR_X_M - nearestQuarter));
+                }
+            }
+
+            state.detectorX = Math.round(x_m * 100) / 100;
+            updateUI();
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            handlePointerDown(e.clientX, e.clientY);
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (state.isDragging) {
+                const pt = getCanvasPointerPos(e.clientX, e.clientY);
+                updateDetectorFromPx(pt.x);
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            state.isDragging = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+        window.addEventListener('touchmove', (e) => {
+            if (state.isDragging && e.touches.length > 0) {
+                const pt = getCanvasPointerPos(e.touches[0].clientX, e.touches[0].clientY);
+                updateDetectorFromPx(pt.x);
+            }
+        }, { passive: true });
+        window.addEventListener('touchend', () => {
+            state.isDragging = false;
+        });
+
+        /**
+         * Vòng lặp hoạt ảnh 60fps
+         */
+        function animate() {
+            if (state.txOn) {
+                // Tốc độ dao động pha tỷ lệ nhẹ với tần số phát f
+                state.phase += 0.055 * (state.freqMHz / 100);
+            }
+            drawScene();
+            requestAnimationFrame(animate);
+        }
+
+        // Lắng nghe sự kiện điều khiển
+        btnTxPower.addEventListener('click', () => {
+            state.txOn = !state.txOn;
+            updateUI();
+        });
+
+        btnReflector.addEventListener('click', () => {
+            state.reflectorOn = !state.reflectorOn;
+            updateUI();
+        });
+
+        btnComponents.addEventListener('click', () => {
+            state.showComponents = !state.showComponents;
+            updateUI();
+        });
+
+        btnAudio.addEventListener('click', () => {
+            state.audioOn = !state.audioOn;
+            if (state.audioOn && !audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            updateUI();
+        });
+
+        freqSlider.addEventListener('input', (e) => {
+            state.freqMHz = parseInt(e.target.value, 10);
+            updateUI();
+        });
+
+        posSlider.addEventListener('input', (e) => {
+            state.detectorX = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        btnReset.addEventListener('click', () => {
+            state.txOn = true;
+            state.freqMHz = 100;
+            state.detectorX = 7.25;
+            state.reflectorOn = true;
+            state.showComponents = true;
+
+            freqSlider.value = 100;
+            posSlider.value = 7.25;
+            updateUI();
+        });
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            drawScene();
+        });
+
+        window.onload = function () {
+            resizeCanvas();
+            updateUI();
+            animate();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thí nghiệm khe kép</title>
+<style>
+:root{
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f3f6fc;--panel:#fff;--panel2:#eaf0fa;--line:#cfd9ea;--text:#15233b;--muted:#5b6c88;
+  --blue:#1676cf;--cyan:#0891b2;--green:#0f9d6b;--orange:#d97706;--violet:#7c3aed;--barrier:#7b8aa3;--cv:#f7faff;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#080d18;--panel:#111c30;--panel2:#182741;--line:#263b5b;--text:#e8f0ff;--muted:#91a5c2;
+  --blue:#3b9bf0;--cyan:#38d3f0;--green:#4de0a0;--orange:#ffbd59;--violet:#b794ff;--barrier:#8293ac;--cv:#0b1424;}}
+:root[data-theme="dark"]{
+  --bg:#080d18;--panel:#111c30;--panel2:#182741;--line:#263b5b;--text:#e8f0ff;--muted:#91a5c2;
+  --blue:#3b9bf0;--cyan:#38d3f0;--green:#4de0a0;--orange:#ffbd59;--violet:#b794ff;--barrier:#8293ac;--cv:#0b1424;}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:18px;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;line-height:1.6}
+.wrap{max-width:1100px;margin:auto}
+h1{text-align:center;margin:6px 0 0;letter-spacing:2px;font-size:clamp(22px,4.5vw,34px);background:linear-gradient(90deg,var(--blue),var(--violet),var(--orange));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{text-align:center;color:var(--muted);margin:4px 0 22px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+h2{margin:0 0 10px;font-size:18px}
+canvas{width:100%;display:block;border-radius:10px;background:var(--cv)}
+#exp{height:380px}#scr{height:330px;margin-top:6px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;align-items:center}
+button{padding:11px 16px;border:0;border-radius:9px;color:#fff;background:var(--blue);cursor:pointer;font-weight:700;font-size:14px;transition:.15s}
+button:hover{filter:brightness(1.12);transform:translateY(-1px)}
+button.run{background:var(--green)}button.det{background:var(--violet)}button.det.on{background:var(--orange)}button.rst{background:#e0484d}
+.speed{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px;margin-left:auto}
+.speed input{accent-color:var(--blue)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--panel2);border:1px solid var(--line);padding:14px;border-radius:12px}
+.stat h3{margin:0;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.stat p{margin:4px 0 0;font-size:22px;font-weight:800}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.hint{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--panel2);border-left:4px solid var(--green);font-size:14px}
+.hint.on{border-color:var(--orange)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{background:var(--panel2);border-radius:12px;padding:14px;border-top:3px solid var(--green)}
+.card.o{border-top-color:var(--orange)}.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;font-size:14px;color:var(--muted)}
+.g{color:var(--green)}.o{color:var(--orange)}
+@media(max-width:700px){body{padding:10px}#exp{height:300px}#scr{height:280px}.stats{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.speed{margin-left:0;width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>THÍ NGHIỆM KHE KÉP</h1>
+<p class="sub">Double-slit experiment – Hạt và sóng trong thế giới lượng tử</p>
+
+<div class="panel">
+  <h2>1. Mô phỏng thí nghiệm</h2>
+  <canvas id="exp"></canvas>
+  <div class="legend">
+    <span><i style="background:var(--cyan)"></i>Electron đang bay</span>
+    <span><i style="background:var(--blue);opacity:.5"></i>Sóng xác suất (qua cả hai khe)</span>
+    <span><i style="background:var(--orange)"></i>Đầu dò (D)</span>
+    <span><i style="background:var(--barrier)"></i>Màn chắn hai khe</span>
+  </div>
+  <div class="controls">
+    <button id="fire">Bắn 1 electron</button>
+    <button id="auto" class="run">Bắn liên tục</button>
+    <button id="det" class="det">Đầu dò: TẮT</button>
+    <button id="rst" class="rst">Xóa màn hình</button>
+    <label class="speed">Tốc độ <input id="rate" type="range" min="1" max="80" value="12"><span id="rateV">12</span>/giây</label>
+  </div>
+  <div id="hint" class="hint"></div>
+</div>
+
+<div class="stats">
+  <div class="stat"><h3>Electron đã đến màn</h3><p id="total" style="color:var(--cyan)">0</p></div>
+  <div class="stat"><h3>Chế độ</h3><p id="mode" class="g">Giao thoa</p></div>
+  <div class="stat"><h3>Đầu dò</h3><p id="status" class="g">Tắt</p></div>
+  <div class="stat"><h3>Số vân sáng</h3><p id="fringes" style="color:var(--violet)">–</p></div>
+</div>
+
+<div class="panel">
+  <h2>2. Màn hình ghi nhận electron</h2>
+  <canvas id="scr"></canvas>
+  <div class="legend">
+    <span><i style="background:var(--cyan)"></i>Vị trí từng electron</span>
+    <span><i style="background:var(--blue);opacity:.6"></i>Biểu đồ số electron theo vị trí</span>
+    <span><i style="background:var(--orange)"></i>Đường lý thuyết (xác suất)</span>
+  </div>
+  <p style="color:var(--muted);font-size:14px;margin:10px 0 0">Mỗi chấm là một electron đến màn. Ban đầu chúng trông ngẫu nhiên, nhưng khi số lượng tăng lên, hình dạng phân bố hiện ra rõ dần và bám theo đường lý thuyết.</p>
+</div>
+
+<div class="panel">
+  <h2>3. Giải thích hiện tượng</h2>
+  <div class="cols">
+    <div class="card"><h3 class="g">Không có đầu dò</h3><p>Electron được bắn từng hạt một, nhưng trạng thái lượng tử của nó đi qua cả hai khe dưới dạng chồng chập. Các biên độ xác suất giao thoa với nhau, tạo ra vân sáng và vân tối xen kẽ trên màn.</p></div>
+    <div class="card o"><h3 class="o">Có đầu dò</h3><p>Khi thiết bị đo thu thập thông tin về khe mà electron đi qua, sự chồng chập bị phá vỡ. Giao thoa biến mất, phân bố chỉ còn hai vùng tương ứng hai khe.</p></div>
+  </div>
+  <h2 style="margin-top:18px">4. Kết luận</h2>
+  <p style="margin:0;color:var(--muted)">Vật chất lượng tử vừa có tính sóng vừa có tính hạt, và kết quả quan sát phụ thuộc vào cách ta đo. Đây là một trong những minh chứng quan trọng nhất của cơ học lượng tử. Lưu ý: đây là mô phỏng minh họa, không phải tính toán vật lý chính xác.</p>
+</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const ex=$("exp"),sc=$("scr"),cx=ex.getContext("2d"),sx=sc.getContext("2d");
+const RANGE=0.48,K=70,SLIT=0.12,BINS=96;
+let detector=false,running=false,timer=null,hits=[],bins=new Array(BINS).fill(0),particles=[],W1=0,H1=0,W2=0,H2=0,C={};
+
+function colors(){const s=getComputedStyle(document.documentElement);
+  for(const k of ["cv","text","muted","blue","cyan","green","orange","violet","barrier","line"])C[k]=s.getPropertyValue("--"+k).trim();}
+
+function fit(c,ctx){const r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;
+  c.width=r.width*d;c.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);return[r.width,r.height];}
+function resize(){[W1,H1]=fit(ex,cx);[W2,H2]=fit(sc,sx);drawScreen();}
+
+/* Xác suất (chưa chuẩn hóa) */
+function prob(y){
+  if(!detector)return Math.exp(-((y/0.23)**2))*Math.cos(y*K)**2;
+  const g=m=>Math.exp(-(((y-m)/0.014)**2)/2);
+  return g(-SLIT)+g(SLIT);
+}
+function randN(){return Math.sqrt(-2*Math.log(1-Math.random()))*Math.cos(2*Math.PI*Math.random());}
+function sample(){
+  if(!detector){for(;;){const y=(Math.random()*2-1)*RANGE;if(Math.random()<prob(y))return y;}}
+  const y=(Math.random()<.5?-SLIT:SLIT)+randN()*0.014;
+  return Math.max(-RANGE,Math.min(RANGE,y));
+}
+
+function fire(){
+  const y=sample();
+  const slit=detector?(Math.abs(y-SLIT)<Math.abs(y+SLIT)?1:-1):0;
+  if(particles.length<250)particles.push({t:0,y,slit});
+}
+function land(p){
+  hits.push({y:p.y,j:Math.random()});
+  bins[Math.min(BINS-1,Math.floor((p.y+RANGE)/(2*RANGE)*BINS))]++;
+  if(hits.length>20000){hits.shift();}
+  updateStats();
+}
+
+function updateStats(){
+  $("total").textContent=hits.length;
+  $("mode").textContent=detector?"Hai vùng hạt":"Giao thoa";
+  $("mode").className=detector?"o":"g";
+  $("status").textContent=detector?"Đang bật":"Tắt";
+  $("status").className=detector?"o":"g";
+  $("det").textContent=detector?"Đầu dò: BẬT":"Đầu dò: TẮT";
+  $("det").classList.toggle("on",detector);
+  $("fringes").textContent=detector?"0 (không có)":(hits.length>200?countFringes():"cần ≥ 200 hạt");
+  const h=$("hint");h.classList.toggle("on",detector);
+  h.innerHTML=detector
+    ?"<b>Đầu dò đang bật:</b> mỗi electron bị “nhìn” xem đi qua khe nào nên hành xử như hạt. Màn chỉ hiện hai dải sáng đối diện hai khe."
+    :"<b>Đầu dò đang tắt:</b> electron đi qua cả hai khe như một sóng. Hãy bắn liên tục và quan sát các vân giao thoa dần hiện ra.";
+}
+function countFringes(){
+  const m=Math.max(...bins);let n=0,up=false;
+  const sm=bins.map((v,i)=>(v+(bins[i-1]||v)+(bins[i+1]||v))/3);
+  for(let i=1;i<BINS-1;i++){
+    if(sm[i]>m*0.35&&sm[i]>=sm[i-1]&&sm[i]>sm[i+1]&&!up){n++;up=true}
+    if(sm[i]<m*0.2)up=false;
+  }
+  return Math.max(n,1)+" (ước lượng)";
+}
+
+/* ---- Vẽ thí nghiệm ---- */
+function label(ctx,t,x,y,col,size=12){ctx.fillStyle=col;ctx.font=size+"px system-ui,Arial";ctx.textAlign="center";ctx.fillText(t,x,y);}
+function draw(time){
+  const W=W1,H=H1;cx.clearRect(0,0,W,H);
+  const sX=W*.09,bX=W*.43,eX=W*.88,cY=H/2,gap=H*SLIT,sz=H*.02;
+  // sóng xác suất khi không có đầu dò
+  if(!detector){
+    cx.lineWidth=1.2;
+    for(const s of[-1,1])for(let i=0;i<7;i++){
+      const r=((time/25+i*28)%196);cx.globalAlpha=.4*(1-r/196);cx.strokeStyle=C.blue;
+      cx.beginPath();cx.arc(bX,cY+s*gap,r,-Math.PI/2.2,Math.PI/2.2);cx.stroke();}
+    cx.globalAlpha=1;
+  }
+  // màn chắn
+  cx.fillStyle=C.barrier;
+  const w=10;
+  cx.fillRect(bX-w/2,0,w,cY-gap-sz);
+  cx.fillRect(bX-w/2,cY-gap+sz,w,2*gap-2*sz);
+  cx.fillRect(bX-w/2,cY+gap+sz,w,H-(cY+gap+sz));
+  // màn hứng
+  cx.fillStyle=C.line;cx.fillRect(eX-3,0,6,H);
+  cx.fillStyle=detector?C.orange:C.cyan;cx.globalAlpha=.55;
+  for(let i=Math.max(0,hits.length-2500);i<hits.length;i++){const hy=cY+hits[i].y*H;cx.fillRect(eX-12,hy-1,24,2);}
+  cx.globalAlpha=1;
+  // nguồn
+  const g=cx.createRadialGradient(sX,cY,2,sX,cY,26);g.addColorStop(0,C.cyan);g.addColorStop(1,"transparent");
+  cx.fillStyle=g;cx.beginPath();cx.arc(sX,cY,26,0,7);cx.fill();
+  cx.fillStyle=C.cyan;cx.beginPath();cx.arc(sX,cY,9,0,7);cx.fill();
+  // đầu dò
+  if(detector)for(const s of[-1,1]){
+    cx.fillStyle=C.orange;cx.fillRect(bX+14,cY+s*gap-11,28,22);
+    label(cx,"D",bX+28,cY+s*gap+5,"#1a1200",13);
+    cx.strokeStyle=C.orange;cx.globalAlpha=.35;cx.setLineDash([4,4]);
+    cx.beginPath();cx.moveTo(bX+42,cY+s*gap);cx.lineTo(eX,cY+s*gap);cx.stroke();cx.setLineDash([]);cx.globalAlpha=1;
+  }
+  // nhãn
+  const fs=Math.max(11,W/80);
+  label(cx,"Nguồn electron",sX,H*.1,C.muted,fs);
+  label(cx,"Màn chắn hai khe",bX,H*.1,C.muted,fs);
+  label(cx,"Màn hứng",eX,H*.1,C.muted,fs);
+  label(cx,"Khe 1",bX-34,cY-gap+4,C.violet,fs);label(cx,"Khe 2",bX-34,cY+gap+4,C.violet,fs);
+  if(detector)label(cx,"Đầu dò",bX+30,H*.93,C.orange,fs);
+  // electron
+  for(const p of particles){
+    const ball=(x,y,a)=>{cx.globalAlpha=a;cx.shadowBlur=12;cx.shadowColor=C.cyan;cx.fillStyle=C.cyan;
+      cx.beginPath();cx.arc(x,y,4.2,0,7);cx.fill();cx.shadowBlur=0;cx.globalAlpha=1;};
+    if(p.t<.42){ball(sX+(bX-sX)*p.t/.42,cY,1);continue;}
+    const s=(p.t-.42)/.58,x=bX+(eX-bX)*s,ty=cY+p.y*H;
+    if(p.slit){const y0=cY+p.slit*gap;ball(x,y0+(ty-y0)*s,1);}
+    else for(const k of[-1,1]){const y0=cY+k*gap;ball(x,y0+(ty-y0)*s,.55);}
+  }
+}
+
+/* ---- Màn ghi nhận + biểu đồ ---- */
+function drawScreen(){
+  const W=W2,H=H2,pad=16,x0=pad,x1=W-pad,top=34,dotsB=H*.52,base=H-30,hTop=dotsB+12;
+  sx.fillStyle=C.cv;sx.fillRect(0,0,W,H);
+  const X=y=>x0+(y+RANGE)/(2*RANGE)*(x1-x0);
+  sx.strokeStyle=C.line;sx.lineWidth=1;
+  sx.strokeRect(x0,top,x1-x0,dotsB-top);
+  sx.beginPath();sx.moveTo(x0,base);sx.lineTo(x1,base);sx.stroke();
+  label(sx,"VỊ TRÍ CÁC ELECTRON TRÊN MÀN",W/2,20,C.text,13);
+  // chấm
+  sx.fillStyle=C.cyan;sx.globalAlpha=.75;
+  const start=Math.max(0,hits.length-2500);
+  for(let i=start;i<hits.length;i++){const h=hits[i];
+    sx.beginPath();sx.arc(X(h.y),top+4+h.j*(dotsB-top-8),1.8,0,7);sx.fill();}
+  sx.globalAlpha=1;
+  // histogram
+  const n=hits.length,bw=(x1-x0)/BINS;
+  let Z=0;const pv=[];for(let i=0;i<BINS;i++){const v=prob(-RANGE+(i+.5)/BINS*2*RANGE);pv.push(v);Z+=v;}
+  const exp=pv.map(v=>Z?v/Z*n:0);
+  const mx=Math.max(1,...bins,...exp),sc_=(base-hTop)/mx;
+  sx.fillStyle=C.blue;sx.globalAlpha=.6;
+  for(let i=0;i<BINS;i++){const h=bins[i]*sc_;sx.fillRect(x0+i*bw+1,base-h,bw-2,h);}
+  sx.globalAlpha=1;
+  if(n>0){sx.strokeStyle=C.orange;sx.lineWidth=2;sx.setLineDash([6,4]);sx.beginPath();
+    for(let i=0;i<BINS;i++){const x=x0+(i+.5)*bw,y=base-exp[i]*sc_;i?sx.lineTo(x,y):sx.moveTo(x,y);}
+    sx.stroke();sx.setLineDash([]);}
+  label(sx,"−  vị trí trên màn  +",W/2,H-10,C.muted,12);
+  label(sx,"vân giữa (sáng nhất)",X(0),hTop-2,C.violet,11);
+  if(n===0)label(sx,"Nhấn “Bắn 1 electron” hoặc “Bắn liên tục” để bắt đầu",W/2,(top+dotsB)/2,C.muted,14);
+}
+
+/* ---- Vòng lặp ---- */
+let last=0,dirty=false;
+function loop(time){
+  colors();
+  const dt=Math.min(2,(time-last)/16.67||1);last=time;
+  for(const p of particles){p.t+=.012*dt;}
+  const arrived=particles.filter(p=>p.t>=1);
+  if(arrived.length){arrived.forEach(land);particles=particles.filter(p=>p.t<1);dirty=true;}
+  draw(time);
+  if(dirty){drawScreen();dirty=false;}
+  requestAnimationFrame(loop);
+}
+
+function clearAll(){hits=[];bins.fill(0);particles=[];updateStats();drawScreen();}
+function setAuto(on){
+  running=on;clearInterval(timer);
+  $("auto").textContent=on?"Dừng bắn":"Bắn liên tục";
+  $("auto").style.background=on?"#e0484d":"";
+  if(on)timer=setInterval(fire,1000/$("rate").value);
+}
+$("fire").onclick=fire;
+$("auto").onclick=()=>setAuto(!running);
+$("det").onclick=()=>{detector=!detector;clearAll();};
+$("rst").onclick=clearAll;
+$("rate").oninput=e=>{$("rateV").textContent=e.target.value;if(running)setAuto(true);};
+window.addEventListener("resize",resize);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{colors();drawScreen();});
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&running)setAuto(false);});
+colors();resize();updateStats();requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mô phỏng hiện tượng quang điện của Einstein</title>
+<style>
+:root {
+  --bg:#080d1b; --panel:#111a30; --panel2:#18233f; --line:#27375c;
+  --text:#e9f0ff; --muted:#9fb0cf; --beam:#54e4a2;
+  --amber:#ffc857; --cyan:#4fd8ff; --red:#ff7a7a; --green:#4de0a0;
+}
+* { box-sizing:border-box; }
+body { margin:0; padding:20px; background:var(--bg); color:var(--text);
+  font:16px/1.65 "Be Vietnam Pro","Segoe UI",Roboto,Arial,sans-serif; }
+.wrap { max-width:1060px; margin:auto; }
+header { text-align:center; margin-bottom:22px; }
+h1 { margin:0 0 6px; font-size:clamp(22px,4vw,32px); line-height:1.25; }
+header p { margin:0; color:var(--muted); }
+h2 { margin:0 0 14px; font-size:18px; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+  padding:18px; margin-bottom:16px; }
+.panel.main { border-top:3px solid var(--beam); }
+canvas { width:100%; height:370px; display:block; border-radius:10px; background:#0a1428; }
+.status { margin-top:12px; padding:12px 14px; border-radius:10px; font-weight:700;
+  text-align:center; background:var(--panel2); border:1px solid var(--line); }
+.status.ok { color:var(--green); border-color:#2c7a5b; }
+.status.no { color:var(--red); border-color:#8a3f3f; }
+.note { margin:10px 0 0; padding:12px 14px; border-left:3px solid var(--beam);
+  background:var(--panel2); border-radius:0 10px 10px 0; color:#d6e2fa; }
+.row { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:14px; }
+button { border:1px solid var(--line); background:var(--panel2); color:var(--text);
+  padding:9px 15px; border-radius:8px; font:inherit; font-size:14px; cursor:pointer; }
+button:hover { border-color:var(--beam); }
+button:focus-visible, input:focus-visible { outline:2px solid var(--beam); outline-offset:2px; }
+button.primary { background:var(--beam); color:#06101f; border-color:var(--beam); font-weight:700; }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.ctl { margin-bottom:18px; }
+.ctl label { display:flex; justify-content:space-between; gap:10px; margin-bottom:6px; }
+.ctl strong { color:var(--beam); white-space:nowrap; }
+.hint { font-size:13px; color:var(--muted); margin:4px 0 0; }
+input[type=range] { width:100%; accent-color:var(--beam); }
+.chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.chips button { padding:5px 10px; font-size:13px; }
+.grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.stat { background:var(--panel2); border-radius:10px; padding:12px 14px; }
+.stat small { color:var(--muted); display:block; }
+.stat b { font-size:20px; color:var(--cyan); }
+.stat span { font-size:12px; color:var(--muted); display:block; }
+.bar { position:relative; height:30px; border-radius:8px; background:#0a1428;
+  border:1px solid var(--line); overflow:hidden; display:flex; }
+.bar i { display:block; height:100%; transition:width .25s; }
+.bar .a { background:var(--amber); } .bar .k { background:var(--cyan); }
+.bar .x { background:var(--red); }
+.legend { display:flex; flex-wrap:wrap; gap:14px; font-size:13px; color:var(--muted); margin-top:8px; }
+.legend em { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+.spec { position:relative; height:26px; border-radius:8px; margin-top:26px; }
+.spec .cut { position:absolute; top:0; bottom:0; right:0; background:rgba(8,13,27,.72);
+  border-left:2px dashed #fff; border-radius:0 8px 8px 0; }
+.spec .mk { position:absolute; top:-8px; width:3px; height:42px; background:#fff;
+  transform:translateX(-1px); border-radius:2px; transition:left .15s; }
+.spec .tag { position:absolute; top:-26px; font-size:12px; white-space:nowrap;
+  transform:translateX(-50%); color:#fff; }
+.scale { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:4px; }
+.formula { font-size:20px; color:var(--amber); font-weight:700; margin:8px 0; }
+.cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px; }
+.card { background:var(--panel2); border-radius:10px; padding:12px 14px; font-size:14.5px; }
+.card b { display:block; margin-bottom:4px; color:var(--amber); }
+@media (max-width:720px) {
+  body { padding:10px; } canvas { height:300px; }
+  .two, .cards { grid-template-columns:1fr; } .grid { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Hiện tượng quang điện của Einstein</h1>
+  <p>Ánh sáng là các hạt photon: mỗi photon đẩy tối đa một electron ra khỏi kim loại.</p>
+</header>
+
+<section class="panel main">
+  <h2>Thí nghiệm</h2>
+  <canvas id="scene" aria-label="Mô phỏng photon chiếu vào tấm kim loại và làm bật electron"></canvas>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+  <p class="note" id="note"></p>
+  <div class="row">
+    <button class="primary" id="toggle">Tắt ánh sáng</button>
+    <button id="reset">Đặt lại</button>
+  </div>
+</section>
+
+<div class="two">
+  <section class="panel">
+    <h2>Điều chỉnh</h2>
+    <div class="ctl">
+      <label for="wave">Bước sóng ánh sáng λ <strong id="waveV"></strong></label>
+      <input type="range" id="wave" min="150" max="900" step="5" value="400">
+      <p class="hint" id="waveName"></p>
+      <div class="chips" id="lightChips"></div>
+    </div>
+    <div class="ctl">
+      <label for="inten">Cường độ ánh sáng (số photon mỗi giây) <strong id="intV"></strong></label>
+      <input type="range" id="inten" min="0" max="100" value="50">
+      <p class="hint">Chỉ làm tăng số electron, không đổi động năng của từng electron.</p>
+    </div>
+    <div class="ctl" style="margin-bottom:0">
+      <label for="work">Công thoát của kim loại A <strong id="workV"></strong></label>
+      <input type="range" id="work" min="1.5" max="5.5" step="0.05" value="2">
+      <div class="chips" id="metalChips"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Kết quả</h2>
+    <div class="grid">
+      <div class="stat"><small>Năng lượng photon</small><b id="sE"></b><span>ε = hc/λ</span></div>
+      <div class="stat"><small>Tần số</small><b id="sF"></b><span>f = c/λ</span></div>
+      <div class="stat"><small>Giới hạn quang điện</small><b id="sL0"></b><span>λ₀ = hc/A</span></div>
+      <div class="stat"><small>Động năng cực đại</small><b id="sK"></b><span>Wđ max = ε − A</span></div>
+      <div class="stat"><small>Hiệu điện thế hãm</small><b id="sU"></b><span>Uh = Wđ max / e</span></div>
+      <div class="stat"><small>Dòng quang điện</small><b id="sI"></b><span>tỉ lệ với cường độ</span></div>
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Năng lượng một photon được dùng thế nào?</h2>
+  <div class="bar" id="ebar"></div>
+  <div class="legend">
+    <span><em style="background:var(--amber)"></em>Công thoát A (để electron rời kim loại)</span>
+    <span><em style="background:var(--cyan)"></em>Động năng của electron</span>
+    <span><em style="background:var(--red)"></em>Photon thiếu năng lượng</span>
+  </div>
+  <h2 style="margin-top:22px">Vị trí của ánh sáng trong phổ</h2>
+  <div class="spec" id="spec">
+    <div class="cut" id="cut"></div>
+    <div class="mk" id="mkL"></div><div class="tag" id="tagL"></div>
+  </div>
+  <div class="scale"><span>150 nm (tử ngoại)</span><span>400</span><span>700</span><span>900 nm (hồng ngoại)</span></div>
+  <p class="hint">Vùng bị làm tối, phía bên phải đường nét đứt (λ₀), là vùng ánh sáng không gây ra quang điện cho kim loại này.</p>
+</section>
+
+<section class="panel">
+  <h2>Giải thích vật lý</h2>
+  <p>Einstein cho rằng ánh sáng gồm các hạt photon. Mỗi photon mang năng lượng:</p>
+  <div class="formula">ε = hf = hc/λ</div>
+  <p>Electron hấp thụ toàn bộ một photon. Một phần năng lượng bù cho công thoát, phần còn lại là động năng:</p>
+  <div class="formula">hf = A + W<sub>đ max</sub></div>
+  <p>h là hằng số Planck (6,626·10⁻³⁴ J·s), f là tần số, A là công thoát. Nếu ε &lt; A thì không có quang điện, nếu ε ≥ A thì electron bật ra.</p>
+  <div class="cards">
+    <div class="card"><b>1. Có ngưỡng tần số</b>Ánh sáng có λ &gt; λ₀ không gây quang điện dù rất mạnh. Thử kéo λ về phía đỏ và tăng cường độ lên 100%.</div>
+    <div class="card"><b>2. Động năng chỉ phụ thuộc λ</b>Giảm λ thì Wđ max tăng. Tăng cường độ thì electron không nhanh hơn, chỉ nhiều hơn.</div>
+    <div class="card"><b>3. Không có độ trễ</b>Photon đến là electron bật ra ngay. Mô hình sóng của ánh sáng không giải thích được điều này.</div>
+  </div>
+</section>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const HC = 1239.84, C = 2.998e8, LMIN = 150, LMAX = 900;
+const cv = $("scene"), ctx = cv.getContext("2d");
+const wave = $("wave"), inten = $("inten"), work = $("work");
+let W = 0, H = 0, on = true, photons = [], electrons = [], sparks = [], acc = 0, last = performance.now();
+
+function rgb(l) {
+  let r = 0, g = 0, b = 0;
+  if (l < 380) return "rgb(167,139,250)";
+  if (l < 440) { r = (440 - l) / 60; b = 1; }
+  else if (l < 490) { g = (l - 440) / 50; b = 1; }
+  else if (l < 510) { g = 1; b = (510 - l) / 20; }
+  else if (l < 580) { r = (l - 510) / 70; g = 1; }
+  else if (l < 645) { r = 1; g = (645 - l) / 65; }
+  else if (l <= 750) { r = 1; }
+  else return "rgb(190,85,85)";
+  return `rgb(${Math.round(255 * r)},${Math.round(255 * g)},${Math.round(255 * b)})`;
+}
+function lightName(l) {
+  if (l < 380) return "Tử ngoại, mắt người không nhìn thấy";
+  if (l < 450) return "Ánh sáng tím";
+  if (l < 495) return "Ánh sáng lam";
+  if (l < 570) return "Ánh sáng lục";
+  if (l < 590) return "Ánh sáng vàng";
+  if (l < 620) return "Ánh sáng cam";
+  if (l <= 750) return "Ánh sáng đỏ";
+  return "Hồng ngoại, mắt người không nhìn thấy";
+}
+function data() {
+  const l = +wave.value, I = +inten.value, A = +work.value;
+  const E = HC / l;
+  return { l, I, A, E, K: E - A, f: C / (l * 1e-9), l0: HC / A };
+}
+const fmt = (x, n = 2) => x.toFixed(n).replace(".", ",");
+
+function update() {
+  const d = data(), ok = d.E >= d.A, beam = rgb(d.l);
+  document.documentElement.style.setProperty("--beam", beam);
+  $("waveV").textContent = d.l + " nm";
+  $("waveName").textContent = lightName(d.l);
+  $("intV").textContent = d.I + "%";
+  $("workV").textContent = fmt(d.A) + " eV";
+  $("sE").textContent = fmt(d.E) + " eV";
+  $("sF").textContent = fmt(d.f / 1e14) + "·10¹⁴ Hz";
+  $("sL0").textContent = Math.round(d.l0) + " nm";
+  $("sK").textContent = fmt(Math.max(0, d.K)) + " eV";
+  $("sU").textContent = fmt(Math.max(0, d.K)) + " V";
+  $("sI").textContent = ok ? d.I + "%" : "0%";
+
+  const s = $("status");
+  s.className = "status " + (ok ? "ok" : "no");
+  s.textContent = ok ? "Có quang điện: electron được giải phóng"
+                     : "Không có quang điện: photon không đủ năng lượng";
+  $("note").innerHTML = !ok
+    ? `Mỗi photon chỉ mang <b>${fmt(d.E)} eV</b>, nhỏ hơn công thoát <b>${fmt(d.A)} eV</b>. Tăng cường độ chỉ thêm photon yếu, không thêm electron. Hãy giảm λ xuống dưới <b>${Math.round(d.l0)} nm</b>.`
+    : d.K < 0.05
+    ? `Đang ở ngay ngưỡng quang điện: electron vừa đủ thoát ra và gần như không có động năng.`
+    : `Mỗi photon đưa <b>${fmt(d.A)} eV</b> cho công thoát và <b>${fmt(d.K)} eV</b> thành động năng. Tăng cường độ sẽ có nhiều electron hơn nhưng tốc độ không đổi.`;
+
+  // thanh năng lượng
+  const mx = Math.max(d.E, d.A);
+  $("ebar").innerHTML = ok
+    ? `<i class="a" style="width:${d.A / mx * 100}%"></i><i class="k" style="width:${d.K / mx * 100}%"></i>`
+    : `<i class="x" style="width:${d.E / mx * 100}%"></i>`;
+
+  // phổ
+  const pos = l => (Math.min(Math.max(l, LMIN), LMAX) - LMIN) / (LMAX - LMIN) * 100;
+  $("mkL").style.left = pos(d.l) + "%";
+  const tag = $("tagL");
+  tag.style.left = Math.min(Math.max(pos(d.l), 8), 92) + "%";
+  tag.textContent = "λ = " + d.l + " nm";
+  const cut = $("cut"), p0 = pos(d.l0);
+  cut.style.left = p0 + "%"; cut.style.display = d.l0 >= LMAX ? "none" : "block";
+}
+
+function buildStatic() {
+  const stops = [];
+  for (let l = LMIN; l <= LMAX; l += 25) stops.push(`${rgb(l)} ${(l - LMIN) / (LMAX - LMIN) * 100}%`);
+  $("spec").style.background = `linear-gradient(90deg,${stops.join(",")})`;
+  const lights = [["Tử ngoại 250", 250], ["Tím 400", 400], ["Lục 530", 530], ["Vàng 580", 580], ["Đỏ 650", 650]];
+  $("lightChips").innerHTML = lights.map(([n, v]) => `<button data-l="${v}">${n} nm</button>`).join("");
+  const metals = [["Cesi", 1.94], ["Natri", 2.28], ["Canxi", 2.9], ["Kẽm", 4.3], ["Đồng", 4.7]];
+  $("metalChips").innerHTML = metals.map(([n, v]) => `<button data-a="${v}">${n} (${fmt(v)} eV)</button>`).join("");
+  $("lightChips").onclick = e => { if (e.target.dataset.l) { wave.value = e.target.dataset.l; update(); } };
+  $("metalChips").onclick = e => { if (e.target.dataset.a) { work.value = e.target.dataset.a; update(); } };
+}
+
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  W = r.width; H = r.height;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function geom() {
+  return { sx: W * 0.1, sy: H * 0.5, cx: W * 0.56, ay: [H * 0.2, H * 0.8], ax: W * 0.9 };
+}
+
+function spawn(d) {
+  const g = geom(), ty = g.ay[0] + 14 + Math.random() * (g.ay[1] - g.ay[0] - 28);
+  const dx = g.cx - (g.sx + 24), dy = ty - g.sy, len = Math.hypot(dx, dy), sp = 420;
+  photons.push({ x: g.sx + 24, y: g.sy, vx: dx / len * sp, vy: dy / len * sp, ty, ang: Math.atan2(dy, dx) });
+}
+
+function step(dt) {
+  const d = data(), g = geom();
+  if (on && d.I > 0) {
+    acc += dt * d.I * 0.16;
+    while (acc >= 1) { acc -= 1; if (photons.length < 40) spawn(d); }
+  }
+  for (const p of photons) { p.x += p.vx * dt; p.y += p.vy * dt; }
+  photons = photons.filter(p => {
+    if (p.x < g.cx - 4) return true;
+    if (d.E >= d.A) {
+      const v = 60 + 95 * Math.sqrt(Math.max(d.K, 0));
+      electrons.push({ x: g.cx + 8, y: p.y, vx: v, vy: (Math.random() - 0.5) * 50, tr: [] });
+    } else sparks.push({ x: g.cx, y: p.y, t: 0 });
+    return false;
+  });
+  for (const e of electrons) {
+    e.x += e.vx * dt; e.y += e.vy * dt;
+    e.tr.push([e.x, e.y]); if (e.tr.length > 9) e.tr.shift();
+  }
+  electrons = electrons.filter(e => e.x < g.ax - 6 && e.y > 0 && e.y < H);
+  sparks.forEach(s => s.t += dt);
+  sparks = sparks.filter(s => s.t < 0.6);
+}
+
+function label(t, x, y, color, fs) {
+  ctx.font = `${fs}px "Be Vietnam Pro","Segoe UI",Arial,sans-serif`;
+  ctx.fillStyle = color || "#cfe0ff";
+  ctx.fillText(t, x, y);
+}
+function leader(x1, y1, x2, y2) {
+  ctx.strokeStyle = "rgba(207,224,255,.45)"; ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function draw(now) {
+  const d = data(), g = geom(), beam = rgb(d.l), fs = W < 520 ? 10.5 : 12.5;
+  ctx.clearRect(0, 0, W, H);
+  ctx.textAlign = "center";
+
+  // ống chân không
+  ctx.strokeStyle = "rgba(120,160,230,.28)"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(W * 0.2, H * 0.07, W * 0.77, H * 0.86, 22); ctx.stroke();
+  label("Ống chân không", W * 0.585, H * 0.965, "rgba(159,176,207,.8)", fs);
+
+  // chùm sáng
+  if (on && d.I > 0) {
+    const gr = ctx.createLinearGradient(g.sx, 0, g.cx, 0);
+    gr.addColorStop(0, "transparent"); gr.addColorStop(1, beam);
+    ctx.globalAlpha = 0.05 + d.I / 100 * 0.17; ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.moveTo(g.sx + 20, g.sy - 8); ctx.lineTo(g.cx, g.ay[0] + 6);
+    ctx.lineTo(g.cx, g.ay[1] - 6); ctx.lineTo(g.sx + 20, g.sy + 8); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // nguồn sáng
+  ctx.save(); ctx.shadowBlur = on ? 22 : 0; ctx.shadowColor = beam;
+  ctx.fillStyle = on ? beam : "#2c3a5c";
+  ctx.beginPath(); ctx.arc(g.sx, g.sy, 20, 0, 6.2832); ctx.fill(); ctx.restore();
+  label("Nguồn sáng", g.sx, g.sy + 42, "#cfe0ff", fs);
+  label("(bước sóng λ)", g.sx, g.sy + 42 + fs + 3, "rgba(159,176,207,.9)", fs - 1);
+
+  // catot kim loại
+  const gm = ctx.createLinearGradient(g.cx - 8, 0, g.cx + 8, 0);
+  gm.addColorStop(0, "#d3deef"); gm.addColorStop(1, "#4b628a");
+  ctx.fillStyle = gm; ctx.fillRect(g.cx - 8, g.ay[0], 16, g.ay[1] - g.ay[0]);
+  // electron tự do trong kim loại
+  ctx.fillStyle = "rgba(79,216,255,.75)";
+  const t = now / 400;
+  for (let i = 0; i < 9; i++) {
+    const y = g.ay[0] + 14 + i * (g.ay[1] - g.ay[0] - 28) / 8;
+    ctx.beginPath(); ctx.arc(g.cx + Math.sin(t + i * 1.7) * 2, y + Math.cos(t * 1.3 + i) * 2, 2.2, 0, 6.2832); ctx.fill();
+  }
+  label("Catot (tấm kim loại)", g.cx, g.ay[0] - 22, "#e9f0ff", fs);
+  label(`công thoát A = ${fmt(d.A)} eV`, g.cx, g.ay[0] - 8, "#ffc857", fs - 0.5);
+
+  // anot
+  ctx.fillStyle = "#6b7fa6"; ctx.fillRect(g.ax - 3, g.ay[0], 6, g.ay[1] - g.ay[0]);
+  label("Anot (thu electron)", g.ax, g.ay[0] - 8, "#cfe0ff", fs - 0.5);
+
+  // photon
+  for (const p of photons) {
+    const per = 6 + d.l / 900 * 16;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang);
+    ctx.strokeStyle = beam; ctx.lineWidth = 2; ctx.shadowBlur = 8; ctx.shadowColor = beam;
+    ctx.beginPath();
+    for (let k = -28; k <= 0; k += 2) {
+      const y = Math.sin(k / per * 6.2832) * 4 * (1 + k / 34);
+      k === -28 ? ctx.moveTo(k, y) : ctx.lineTo(k, y);
+    }
+    ctx.stroke(); ctx.restore();
+  }
+  // electron
+  for (const e of electrons) {
+    ctx.strokeStyle = "rgba(79,216,255,.35)"; ctx.lineWidth = 2; ctx.beginPath();
+    e.tr.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.stroke();
+    ctx.save(); ctx.shadowBlur = 12; ctx.shadowColor = "#4fd8ff"; ctx.fillStyle = "#4fd8ff";
+    ctx.beginPath(); ctx.arc(e.x, e.y, 4.2, 0, 6.2832); ctx.fill(); ctx.restore();
+  }
+  // photon bị hấp thụ thành nhiệt
+  for (const s of sparks) {
+    ctx.strokeStyle = `rgba(255,122,122,${1 - s.t / 0.6})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 4 + s.t * 28, 0, 6.2832); ctx.stroke();
+  }
+
+  // chú thích
+  const my = g.sy - H * 0.3;
+  label("Photon: ε = hf", W * 0.33, my, beam, fs + 0.5);
+  leader(W * 0.33, my + 5, W * 0.33, g.sy - 12);
+  if (d.E >= d.A) {
+    label(`Electron quang điện: Wđ max = ${fmt(d.K)} eV`, W * 0.745, g.ay[1] + 18 > H - 20 ? H - 26 : g.ay[1] + 14, "#4fd8ff", fs);
+  } else {
+    label("Photon bị hấp thụ, chỉ làm nóng kim loại", W * 0.4, g.ay[1] + 14, "#ff9a9a", fs);
+  }
+}
+
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  step(dt); draw(now);
+  requestAnimationFrame(loop);
+}
+
+$("toggle").onclick = () => { on = !on; $("toggle").textContent = on ? "Tắt ánh sáng" : "Bật ánh sáng"; if (!on) photons = []; };
+$("reset").onclick = () => {
+  wave.value = 400; inten.value = 50; work.value = 2;
+  photons = []; electrons = []; sparks = [];
+  on = true; $("toggle").textContent = "Tắt ánh sáng"; update();
+};
+[wave, inten, work].forEach(el => el.addEventListener("input", update));
+window.addEventListener("resize", resize);
+
+buildStatic(); resize(); update(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>

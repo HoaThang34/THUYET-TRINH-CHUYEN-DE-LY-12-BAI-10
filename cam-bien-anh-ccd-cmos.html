@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cảm Biến Ảnh CMOS & CCD - Mô Phỏng Hoạt Hình Khoa Học 2D</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712;
+            color: #f3f4f6;
+            overflow: hidden;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col justify-between">
+
+    <!-- Thanh tiêu đề trên cùng -->
+    <header class="w-full glass-panel px-4 md:px-6 py-2.5 flex items-center justify-between z-30 border-b border-slate-800">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-microchip text-white text-base md:text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm md:text-lg tracking-wide text-white flex items-center gap-2">
+                    MÔ PHỎNG CẢM BIẾN ẢNH <span class="text-xs px-2 py-0.5 bg-blue-500/20 text-cyan-300 rounded-full border border-cyan-500/30">CCD vs CMOS</span>
+                </h1>
+                <p class="text-[11px] md:text-xs text-slate-400 hidden sm:block">Hoạt hình khoa học 2D bán chân thực • 24-bit Full HD 16:9</p>
+            </div>
+        </div>
+
+        <!-- Chỉ báo giai đoạn hiện tại -->
+        <div class="hidden lg:flex items-center space-x-4 bg-slate-900/90 px-4 py-1.5 rounded-xl border border-slate-800">
+            <div class="flex items-center space-x-2">
+                <span id="phase-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="phase-title" class="text-xs font-semibold text-slate-200 uppercase tracking-wider">Sẵn sàng mô phỏng</span>
+            </div>
+            <span class="text-xs font-mono text-cyan-400 bg-cyan-950/60 px-2.5 py-1 rounded-md border border-cyan-800/50" id="time-display">00:00 / 00:56</span>
+        </div>
+
+        <!-- Nút chuyển chế độ xem -->
+        <div class="flex items-center space-x-1.5 md:space-x-2">
+            <button onclick="setViewMode('both')" id="btn-mode-both" class="px-2.5 md:px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow-md transition-all hover:bg-blue-500">BOTH</button>
+            <button onclick="setViewMode('ccd')" id="btn-mode-ccd" class="px-2.5 md:px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">CCD ONLY</button>
+            <button onclick="setViewMode('cmos')" id="btn-mode-cmos" class="px-2.5 md:px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">CMOS ONLY</button>
+        </div>
+    </header>
+
+    <!-- Khung hiển thị Canvas chính -->
+    <main class="relative flex-1 w-full bg-black flex items-center justify-center overflow-hidden">
+        <canvas id="simCanvas" class="w-full h-full object-contain"></canvas>
+
+        <!-- Hộp thông báo nổi (thay thế alert) -->
+        <div id="msg-box" class="absolute top-5 left-1/2 transform -translate-x-1/2 glass-panel px-5 py-2.5 rounded-xl text-xs md:text-sm font-medium text-white shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center space-x-2.5 border border-cyan-500/40">
+            <i class="fa-solid fa-circle-info text-cyan-400 text-base"></i>
+            <span id="msg-text">Thông báo hệ thống</span>
+        </div>
+    </main>
+
+    <!-- Thanh điều khiển phía dưới -->
+    <footer class="w-full glass-panel px-4 md:px-6 py-3 z-30 border-t border-slate-800 flex flex-col space-y-2.5">
+        <!-- Thanh tiến trình & Tua thời gian -->
+        <div class="w-full flex items-center space-x-3 md:space-x-4">
+            <span class="text-xs font-mono text-slate-400 w-10 text-right" id="current-time-text">0.0s</span>
+            <div class="flex-1 relative h-2.5 bg-slate-800 rounded-full cursor-pointer group" id="progress-bar-container" style="touch-action: none;">
+                <!-- Mốc chia 5 cảnh -->
+                <div class="absolute top-0 bottom-0 left-[14.28%] w-0.5 bg-slate-600/60 z-10 pointer-events-none" title="Cảnh 2"></div>
+                <div class="absolute top-0 bottom-0 left-[28.57%] w-0.5 bg-slate-600/60 z-10 pointer-events-none" title="Cảnh 3"></div>
+                <div class="absolute top-0 bottom-0 left-[53.57%] w-0.5 bg-slate-600/60 z-10 pointer-events-none" title="Cảnh 4"></div>
+                <div class="absolute top-0 bottom-0 left-[78.57%] w-0.5 bg-slate-600/60 z-10 pointer-events-none" title="Cảnh 5"></div>
+
+                <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-600 via-cyan-400 to-emerald-400 rounded-full" id="progress-bar" style="width: 0%;"></div>
+                <div class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg transform -translate-x-1/2 transition-transform group-hover:scale-125 pointer-events-none" id="progress-thumb" style="left: 0%;"></div>
+            </div>
+            <span class="text-xs font-mono text-slate-400 w-10">56.0s</span>
+        </div>
+
+        <!-- Các nút điều khiển chính -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-2.5">
+                <button id="play-btn" onclick="togglePlay()" class="flex items-center space-x-2 px-4 md:px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-xs md:text-sm shadow-lg shadow-blue-600/30 hover:opacity-95 active:scale-95 transition-all">
+                    <i class="fa-solid fa-play" id="play-icon"></i>
+                    <span id="play-text">PLAY</span>
+                </button>
+                <button onclick="pauseAnim()" class="flex items-center space-x-2 px-3.5 md:px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs md:text-sm border border-slate-700 transition-all active:scale-95">
+                    <i class="fa-solid fa-pause"></i>
+                    <span>PAUSE</span>
+                </button>
+                <button onclick="restartAnim()" class="flex items-center space-x-2 px-3.5 md:px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs md:text-sm border border-slate-700 transition-all active:scale-95">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>REPLAY</span>
+                </button>
+            </div>
+
+            <!-- Chọn tốc độ phát -->
+            <div class="flex items-center space-x-1.5 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-800">
+                <span class="text-xs text-slate-400 font-medium mr-1">SPEED:</span>
+                <button onclick="setSpeed(0.5)" id="speed-0.5" class="px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all">0.5x</button>
+                <button onclick="setSpeed(1.0)" id="speed-1.0" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow transition-all">1.0x</button>
+                <button onclick="setSpeed(1.5)" id="speed-1.5" class="px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all">1.5x</button>
+                <button onclick="setSpeed(2.0)" id="speed-2.0" class="px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all">2.0x</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Engine Mô Phỏng Khoa Học 2D -->
+    <script>
+        // Polyfill cho trình duyệt cũ chưa có ctx.roundRect
+        if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (Array.isArray(r)) r = r[0] || 0;
+                r = Math.min(r || 0, w / 2, h / 2);
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                this.closePath();
+            };
+        }
+
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Độ phân giải chuẩn Full HD 16:9
+        const LOGICAL_WIDTH = 1920;
+        const LOGICAL_HEIGHT = 1080;
+
+        function resizeCanvas() {
+            canvas.width = LOGICAL_WIDTH;
+            canvas.height = LOGICAL_HEIGHT;
+            render();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Trạng thái điều khiển hoạt hình
+        let isPlaying = false;
+        let currentTime = 0.0;
+        const totalDuration = 56.0; // Tổng thời lượng 56 giây (5 cảnh)
+        let playbackSpeed = 1.0;
+        let viewMode = 'both'; // 'both', 'ccd', 'cmos'
+        let lastTimestamp = 0;
+        let animFrameId = null;
+
+        // Camera ảo mượt mà
+        const camera = {
+            x: 960,
+            y: 540,
+            zoom: 1.0,
+            targetX: 960,
+            targetY: 540,
+            targetZoom: 1.0
+        };
+
+        // Khởi tạo hệ hạt Photon cho Cảnh 1 & 2
+        const photons = [];
+        const photonColors = ['#fef08a', '#38bdf8', '#4ade80', '#f87171', '#ffffff'];
+        for (let i = 0; i < 85; i++) {
+            photons.push({
+                x: 150 + Math.random() * 850,
+                y: 320 + Math.random() * 440,
+                speed: 260 + Math.random() * 180,
+                size: 3 + Math.random() * 2.5,
+                color: photonColors[i % photonColors.length],
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Ma trận Pixel mẫu đại diện cho khung cảnh (6 hàng x 8 cột)
+        const ROWS = 6;
+        const COLS = 8;
+        const sceneColorMatrix = [];
+        for (let r = 0; r < ROWS; r++) {
+            const rowColors = [];
+            for (let c = 0; c < COLS; c++) {
+                // Tạo bảng màu mô phỏng bầu trời (hàng trên), núi (giữa), cây & đồng cỏ (dưới)
+                if (r < 2) {
+                    rowColors.push(c < 2 ? '#facc15' : '#38bdf8'); // Mặt trời & bầu trời xanh
+                } else if (r < 4) {
+                    rowColors.push((c >= 2 && c <= 5) ? '#64748b' : '#0284c7'); // Núi & nền trời
+                } else {
+                    rowColors.push((c % 2 === 0) ? '#22c55e' : '#15803d'); // Cây cối & thảm cỏ
+                }
+            }
+            sceneColorMatrix.push(rowColors);
+        }
+
+        // Hệ thống thông báo
+        let msgTimeout = null;
+        function showMessage(text) {
+            const box = document.getElementById('msg-box');
+            const txt = document.getElementById('msg-text');
+            txt.textContent = text;
+            box.style.opacity = '1';
+            box.style.transform = 'translate(-50%, 0)';
+            if (msgTimeout) clearTimeout(msgTimeout);
+            msgTimeout = setTimeout(() => {
+                box.style.opacity = '0';
+                box.style.transform = 'translate(-50%, -8px)';
+            }, 2800);
+        }
+
+        // Điều khiển PLAY / PAUSE / REPLAY
+        function togglePlay() {
+            if (isPlaying) {
+                pauseAnim();
+            } else {
+                startAnim();
+            }
+        }
+
+        function startAnim() {
+            if (currentTime >= totalDuration) {
+                currentTime = 0;
+                updateSimulationState(0, true);
+            }
+            if (!isPlaying) {
+                isPlaying = true;
+                updatePlayButtonUI();
+                lastTimestamp = performance.now();
+                animFrameId = requestAnimationFrame(loop);
+            }
+        }
+
+        function pauseAnim() {
+            isPlaying = false;
+            if (animFrameId) {
+                cancelAnimationFrame(animFrameId);
+                animFrameId = null;
+            }
+            updatePlayButtonUI();
+            render();
+        }
+
+        function restartAnim() {
+            currentTime = 0;
+            camera.x = 960;
+            camera.y = 540;
+            camera.zoom = 1.0;
+            updateSimulationState(0, true);
+            updateUI();
+            render();
+            if (!isPlaying) {
+                startAnim();
+            }
+            showMessage('Đã khởi động lại mô phỏng từ đầu.');
+        }
+
+        function updatePlayButtonUI() {
+            const icon = document.getElementById('play-icon');
+            const text = document.getElementById('play-text');
+            if (isPlaying) {
+                icon.className = 'fa-solid fa-pause';
+                text.textContent = 'RUNNING';
+            } else {
+                icon.className = 'fa-solid fa-play';
+                text.textContent = 'PLAY';
+            }
+        }
+
+        function setSpeed(spd) {
+            playbackSpeed = spd;
+            ['0.5', '1.0', '1.5', '2.0'].forEach(s => {
+                const btn = document.getElementById(`speed-${s}`);
+                if (parseFloat(s) === spd) {
+                    btn.className = 'px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow transition-all';
+                } else {
+                    btn.className = 'px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all';
+                }
+            });
+            showMessage(`Tốc độ phát: ${spd}x`);
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            ['both', 'ccd', 'cmos'].forEach(m => {
+                const btn = document.getElementById(`btn-mode-${m}`);
+                if (m === mode) {
+                    btn.className = 'px-2.5 md:px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow-md transition-all hover:bg-blue-500';
+                } else {
+                    btn.className = 'px-2.5 md:px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all';
+                }
+            });
+
+            // Tự tua tới đoạn có hoạt động của cảm biến đang chọn
+            if (mode === 'ccd' && currentTime >= 30 && currentTime < 44) currentTime = 16;
+            if (mode === 'cmos' && currentTime >= 16 && currentTime < 30) currentTime = 30;
+
+            // Cập nhật ngay lập tức camera và khung hình ngay cả khi đang tạm dừng
+            updateSimulationState(0, true);
+            updateUI();
+            render();
+
+            const labels = {
+                both: 'Chế độ xem song song: CCD & CMOS',
+                ccd: 'Chế độ tập trung: Chỉ cảm biến CCD',
+                cmos: 'Chế độ tập trung: Chỉ cảm biến CMOS'
+            };
+            showMessage(labels[mode]);
+        }
+
+        // Tua thời gian trực tiếp trên thanh tiến trình (hỗ trợ chuột, cảm ứng, bút)
+        const progressContainer = document.getElementById('progress-bar-container');
+        let isDraggingProgress = false;
+
+        function scrubToClientX(clientX) {
+            const rect = progressContainer.getBoundingClientRect();
+            const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            currentTime = pos * totalDuration;
+            updateSimulationState(0, true);
+            updateUI();
+            render();
+        }
+
+        progressContainer.addEventListener('pointerdown', (e) => {
+            isDraggingProgress = true;
+            try { progressContainer.setPointerCapture(e.pointerId); } catch (err) {}
+            scrubToClientX(e.clientX);
+        });
+        progressContainer.addEventListener('pointermove', (e) => {
+            if (isDraggingProgress) scrubToClientX(e.clientX);
+        });
+        const endScrub = () => { isDraggingProgress = false; };
+        progressContainer.addEventListener('pointerup', endScrub);
+        progressContainer.addEventListener('pointercancel', endScrub);
+
+        // Vòng lặp hoạt ảnh chính
+        function loop(timestamp) {
+            if (!isPlaying) return;
+            const rawDelta = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+            const delta = Math.min(rawDelta, 0.1); // Chống nhảy khung hình khi chuyển tab
+
+            currentTime += delta * playbackSpeed;
+            if (currentTime >= totalDuration) {
+                currentTime = totalDuration;
+                isPlaying = false;
+                updatePlayButtonUI();
+            }
+
+            updateSimulationState(delta * playbackSpeed, false, delta);
+            render();
+            updateUI();
+
+            if (isPlaying) {
+                animFrameId = requestAnimationFrame(loop);
+            }
+        }
+
+        // Cập nhật trạng thái vật lý & Camera theo thời gian
+        // dt: thời gian mô phỏng (đã nhân tốc độ); realDt: thời gian thực giữa 2 khung hình (cho camera)
+        function updateSimulationState(dt, instantCamera = false, realDt = 1 / 60) {
+            // 1. Điều khiển Camera ảo theo từng cảnh & chế độ xem
+            if (currentTime < 8) {
+                // Cảnh 1: Toàn cảnh ánh sáng vào máy ảnh
+                camera.targetX = 960;
+                camera.targetY = 540;
+                camera.targetZoom = 1.0 + (currentTime / 8) * 0.12;
+            } else if (currentTime < 16) {
+                // Cảnh 2: Phóng to xuyên vào cấu trúc lớp cảm biến
+                camera.targetX = 960;
+                camera.targetY = 540;
+                camera.targetZoom = 1.15;
+            } else if (currentTime < 44) {
+                // Cảnh 3 (16-30s: CCD) & Cảnh 4 (30-44s: CMOS)
+                if (viewMode === 'ccd') {
+                    camera.targetX = 530;
+                    camera.targetY = 545;
+                    camera.targetZoom = 1.22;
+                } else if (viewMode === 'cmos') {
+                    camera.targetX = 1390;
+                    camera.targetY = 545;
+                    camera.targetZoom = 1.22;
+                } else {
+                    camera.targetX = 960;
+                    camera.targetY = 540;
+                    camera.targetZoom = 1.0;
+                }
+            } else {
+                // Cảnh 5: Tái tạo hình ảnh & Màn hình kết quả
+                camera.targetX = 960;
+                camera.targetY = 540;
+                camera.targetZoom = 1.0;
+            }
+
+            if (instantCamera) {
+                camera.x = camera.targetX;
+                camera.y = camera.targetY;
+                camera.zoom = camera.targetZoom;
+            } else {
+                // Làm mượt theo thời gian thực, không phụ thuộc tần số quét màn hình
+                const k = 1 - Math.exp(-6 * realDt);
+                camera.x += (camera.targetX - camera.x) * k;
+                camera.y += (camera.targetY - camera.y) * k;
+                camera.zoom += (camera.targetZoom - camera.zoom) * k;
+            }
+
+            // 2. Cập nhật quỹ đạo Photon (Cảnh 1 & 2)
+            photons.forEach(p => {
+                p.x += p.speed * dt;
+                if (p.x > 1360) {
+                    p.x = 180 + Math.random() * 120;
+                    p.y = 320 + Math.random() * 440;
+                }
+            });
+        }
+
+        // Cập nhật giao diện thanh tiến trình và nhãn giai đoạn
+        function updateUI() {
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = Math.floor(currentTime % 60);
+            const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            document.getElementById('time-display').textContent = `${timeStr} / 00:56`;
+            document.getElementById('current-time-text').textContent = `${currentTime.toFixed(1)}s`;
+
+            const pct = (currentTime / totalDuration) * 100;
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+            document.getElementById('progress-thumb').style.left = `${pct}%`;
+
+            const phaseTitle = document.getElementById('phase-title');
+            const phaseDot = document.getElementById('phase-dot');
+            if (currentTime < 8) {
+                phaseTitle.textContent = 'CẢNH 1: ÁNH SÁNG PHẢN XẠ & HỘI TỤ QUA ỐNG KÍNH';
+                phaseDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+            } else if (currentTime < 16) {
+                phaseTitle.textContent = 'CẢNH 2: PHÓNG TO LỚP CẢM BIẾN (MICROLENS • BAYER • PHOTODIODE)';
+                phaseDot.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse';
+            } else if (currentTime < 30) {
+                phaseTitle.textContent = 'CẢNH 3: CẢM BIẾN CCD — DỊCH CHUYỂN ĐIỆN TÍCH TUẦN TỰ';
+                phaseDot.className = 'w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse';
+            } else if (currentTime < 44) {
+                phaseTitle.textContent = 'CẢNH 4: CẢM BIẾN CMOS — ĐỌC ĐIỆN ÁP QUA TRANSISTOR PIXEL';
+                phaseDot.className = 'w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse';
+            } else {
+                phaseTitle.textContent = 'CẢNH 5: XỬ LÝ ISP & TÁI TẠO HÌNH ẢNH KỸ THUẬT SỐ';
+                phaseDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+            }
+        }
+
+        // ==========================================
+        // BỘ VẼ ĐỒ HỌA KHOA HỌC 2D (24-BIT RENDERER)
+        // ==========================================
+        function render() {
+            ctx.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+            ctx.save();
+            // Áp dụng biến đổi Camera ảo
+            ctx.translate(LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2);
+            ctx.scale(camera.zoom, camera.zoom);
+            ctx.translate(-camera.x, -camera.y);
+
+            // Nền không gian kỹ thuật tối sâu (phủ rộng hơn khung để không lộ mép khi camera zoom/pan)
+            const bgGrad = ctx.createRadialGradient(960, 540, 100, 960, 540, 1200);
+            bgGrad.addColorStop(0, '#0f172a');
+            bgGrad.addColorStop(1, '#020617');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(-1000, -1000, 3920, 3080);
+
+            // Lưới kỹ thuật mờ tạo chiều sâu
+            drawTechnicalGrid();
+
+            if (currentTime < 8) {
+                // CẢNH 1: ÁNH SÁNG ĐI VÀO MÁY ẢNH (0 - 8s)
+                drawScene1_LightAndCamera();
+            } else if (currentTime < 16) {
+                // CẢNH 2: PHÓNG TO BÊN TRONG CẢM BIẾN (8 - 16s)
+                drawScene2_SensorCrossSection();
+            } else if (currentTime < 44) {
+                // CẢNH 3 & 4: SO SÁNH HOẠT ĐỘNG CCD (16-30s) & CMOS (30-44s)
+                drawScene3And4_CCDvsCMOS();
+            } else {
+                // CẢNH 5: TÁI TẠO HÌNH ẢNH (44 - 56s)
+                drawScene5_ImageReconstruction();
+            }
+
+            ctx.restore();
+
+            // Hiệu ứng mờ chuyển cảnh (tại các mốc 8s, 16s, 44s)
+            const fadeSpan = 0.35;
+            let fadeAlpha = 0;
+            [8, 16, 44].forEach(b => {
+                const d = Math.abs(currentTime - b);
+                if (d < fadeSpan) fadeAlpha = Math.max(fadeAlpha, (1 - d / fadeSpan) * 0.85);
+            });
+            if (fadeAlpha > 0) {
+                ctx.save();
+                ctx.fillStyle = `rgba(2, 6, 23, ${fadeAlpha})`;
+                ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+                ctx.restore();
+            }
+        }
+
+        function drawTechnicalGrid() {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
+            ctx.lineWidth = 1;
+            const step = 60;
+            for (let x = -600; x <= 2520; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, -600);
+                ctx.lineTo(x, 1680);
+                ctx.stroke();
+            }
+            for (let y = -600; y <= 1680; y += step) {
+                ctx.beginPath();
+                ctx.moveTo(-600, y);
+                ctx.lineTo(2520, y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // ------------------------------------------
+        // CẢNH 1: ÁNH SÁNG TỪ CẢNH VẬT -> ỐNG KÍNH -> CẢM BIẾN
+        // ------------------------------------------
+        function drawScene1_LightAndCamera() {
+            // 1. Khung cảnh thiên nhiên bên trái
+            drawNatureSceneCard(120, 240, 420, 600);
+
+            // 2. Thân máy ảnh kỹ thuật số cắt lớp bên phải
+            ctx.save();
+            // Thân vỏ máy ảnh
+            const bodyGrad = ctx.createLinearGradient(1150, 220, 1750, 860);
+            bodyGrad.addColorStop(0, '#1e293b');
+            bodyGrad.addColorStop(1, '#0f172a');
+            ctx.fillStyle = bodyGrad;
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.roundRect(1150, 220, 560, 640, 32);
+            ctx.fill();
+            ctx.stroke();
+
+            // Ống kính quang học (Lens Barrel)
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.roundRect(860, 320, 290, 440, 16);
+            ctx.fill();
+            ctx.stroke();
+
+            // Các thấu kính hội tụ bên trong ống kính
+            drawOpticalLensElement(940, 540, 36, 360);
+            drawOpticalLensElement(1060, 540, 28, 320);
+
+            // Bề mặt cảm biến hình ảnh (Sensor Plane) bên trong buồng tối
+            ctx.save();
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = '#38bdf8';
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(1360, 360, 24, 360);
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(1360, 360, 24, 360);
+            ctx.restore();
+
+            // Nhãn bộ phận ngắn gọn
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 18px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('HỆ THỐNG THẤU KÍNH', 1005, 295);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillText('BỀ MẶT CẢM BIẾN', 1372, 335);
+
+            // 3. Chùm tia sáng hội tụ & Hạt Photon chuyển động
+            const rayGrad = ctx.createLinearGradient(540, 540, 1360, 540);
+            rayGrad.addColorStop(0, 'rgba(254, 240, 138, 0.22)');
+            rayGrad.addColorStop(0.5, 'rgba(56, 189, 248, 0.28)');
+            rayGrad.addColorStop(1, 'rgba(103, 232, 249, 0.45)');
+
+            ctx.fillStyle = rayGrad;
+            ctx.beginPath();
+            ctx.moveTo(540, 310);
+            ctx.lineTo(940, 370);
+            ctx.lineTo(1360, 540);
+            ctx.lineTo(940, 710);
+            ctx.lineTo(540, 770);
+            ctx.closePath();
+            ctx.fill();
+
+            // Vẽ các hạt Photon bay dọc theo đường khúc xạ, hội tụ về đúng một điểm tại x=1360
+            photons.forEach(p => {
+                const progressX = Math.max(0, Math.min(1, (p.x - 540) / (1360 - 540)));
+                const spread = 1 - progressX;
+                const py = 540 + (p.y - 540) * spread;
+
+                if (p.x >= 520 && p.x <= 1360) {
+                    ctx.save();
+                    ctx.fillStyle = p.color;
+                    ctx.shadowBlur = 14;
+                    ctx.shadowColor = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, py, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Vệt chuyển động (Motion Trail)
+                    ctx.strokeStyle = p.color;
+                    ctx.lineWidth = 2;
+                    ctx.globalAlpha = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, py);
+                    ctx.lineTo(p.x - 28, py - (540 - py) * 0.04);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+
+            // Hiệu ứng lóe sáng tại điểm hội tụ trên cảm biến
+            const pulse = 0.6 + Math.sin(currentTime * 12) * 0.4;
+            ctx.save();
+            ctx.fillStyle = `rgba(103, 232, 249, ${pulse})`;
+            ctx.shadowBlur = 35;
+            ctx.shadowColor = '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(1360, 540, 16 * pulse + 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        function drawOpticalLensElement(x, y, width, height) {
+            ctx.save();
+            const grad = ctx.createLinearGradient(x - width, y, x + width, y);
+            grad.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
+            grad.addColorStop(0.5, 'rgba(186, 230, 253, 0.15)');
+            grad.addColorStop(1, 'rgba(56, 189, 248, 0.45)');
+
+            ctx.fillStyle = grad;
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(x, y, width, height / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawNatureSceneCard(x, y, w, h) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 24);
+            ctx.clip();
+
+            // Bầu trời
+            const sky = ctx.createLinearGradient(x, y, x, y + h * 0.65);
+            sky.addColorStop(0, '#0284c7');
+            sky.addColorStop(1, '#38bdf8');
+            ctx.fillStyle = sky;
+            ctx.fillRect(x, y, w, h);
+
+            // Mặt trời phát sáng
+            ctx.fillStyle = '#fef08a';
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = '#facc15';
+            ctx.beginPath();
+            ctx.arc(x + 110, y + 120, 48, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Dãy núi
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            ctx.moveTo(x, y + h * 0.65);
+            ctx.lineTo(x + w * 0.35, y + h * 0.35);
+            ctx.lineTo(x + w * 0.7, y + h * 0.65);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.4, y + h * 0.65);
+            ctx.lineTo(x + w * 0.75, y + h * 0.3);
+            ctx.lineTo(x + w, y + h * 0.65);
+            ctx.closePath();
+            ctx.fill();
+
+            // Đồng cỏ
+            ctx.fillStyle = '#16a34a';
+            ctx.fillRect(x, y + h * 0.65, w, h * 0.35);
+
+            // Cây xanh
+            for (let i = 0; i < 4; i++) {
+                let tx = x + 65 + i * 95;
+                let ty = y + h * 0.68;
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(tx - 6, ty, 12, 40);
+                ctx.fillStyle = '#15803d';
+                ctx.beginPath();
+                ctx.moveTo(tx, ty - 65);
+                ctx.lineTo(tx - 32, ty + 5);
+                ctx.lineTo(tx + 32, ty + 5);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.restore();
+
+            // Viền khung cảnh vật
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 24);
+            ctx.stroke();
+
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = 'bold 18px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('KHUNG CẢNH ÁNH SÁNG PHẢN XẠ', x + w / 2, y - 16);
+        }
+
+        // ------------------------------------------
+        // CẢNH 2: CẤU TRÚC LỚP CẢM BIẾN & HIỆU ỨNG QUANG ĐIỆN
+        // ------------------------------------------
+        function drawScene2_SensorCrossSection() {
+            const localT = currentTime - 8; // 0 -> 8s
+
+            ctx.save();
+            // Khung mặt cắt cảm biến
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.roundRect(260, 120, 1400, 840, 28);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 26px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('MẶT CẮT VI MÔ CẤU TRÚC ĐIỂM ẢNH (PIXEL CROSS-SECTION)', 960, 175);
+
+            const numCols = 6;
+            const colWidth = 170;
+            // Dời lưới sang phải để nhãn tầng bên trái nằm gọn trong khung
+            const startX = 1050 - (numCols * colWidth) / 2;
+            // Một hàng của mẫu lọc màu Bayer thật: R-G-R-G-R-G (hàng kế tiếp là G-B-G-B...)
+            const bayerPattern = [
+                { code: 'R', color: '#ef4444', label: 'Đỏ (R)' },
+                { code: 'G', color: '#22c55e', label: 'Lục (G)' },
+                { code: 'R', color: '#ef4444', label: 'Đỏ (R)' },
+                { code: 'G', color: '#22c55e', label: 'Lục (G)' },
+                { code: 'R', color: '#ef4444', label: 'Đỏ (R)' },
+                { code: 'G', color: '#22c55e', label: 'Lục (G)' }
+            ];
+
+            // Nhãn các tầng bên trái
+            ctx.textAlign = 'right';
+            ctx.font = 'bold 16px Inter';
+            ctx.fillStyle = '#7dd3fc';
+            ctx.fillText('1. MICROLENS ARRAY', startX - 25, 315);
+            ctx.fillStyle = '#a7f3d0';
+            ctx.fillText('2. BAYER (HÀNG R-G-R-G)', startX - 25, 435);
+            ctx.fillStyle = '#fde047';
+            ctx.fillText('3. SILICON PHOTODIODE', startX - 25, 620);
+            ctx.fillStyle = '#c4b5fd';
+            ctx.fillText('4. MẠCH ĐỌC TÍN HIỆU', startX - 25, 815);
+
+            for (let i = 0; i < numCols; i++) {
+                const cx = startX + i * colWidth + colWidth / 2;
+                const cellX = startX + i * colWidth + 10;
+                const cellW = colWidth - 20;
+                const filter = bayerPattern[i];
+
+                // Tầng 1: Microlens hội tụ
+                const lensGrad = ctx.createRadialGradient(cx, 320, 10, cx, 320, 75);
+                lensGrad.addColorStop(0, 'rgba(186, 230, 253, 0.55)');
+                lensGrad.addColorStop(1, 'rgba(14, 165, 233, 0.25)');
+                ctx.fillStyle = lensGrad;
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(cx, 340, 72, Math.PI, 0, false);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Tầng 2: Bộ lọc màu Bayer
+                ctx.fillStyle = filter.color;
+                ctx.globalAlpha = 0.85;
+                ctx.beginPath();
+                ctx.roundRect(cellX, 390, cellW, 70, 10);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 20px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(filter.code, cx, 433);
+
+                // Tầng 3: Vùng cảm quang Photodiode (Bán dẫn Silicon)
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(cellX, 490, cellW, 240, 14);
+                ctx.fill();
+                ctx.stroke();
+
+                // Giếng thế năng tích lũy Electron ở đáy Photodiode
+                const fillRatio = Math.min(1, Math.max(0.15, (localT / 7.5)));
+                const wellHeight = 140 * fillRatio;
+                const wellGrad = ctx.createLinearGradient(0, 725 - wellHeight, 0, 725);
+                wellGrad.addColorStop(0, 'rgba(34, 211, 238, 0.15)');
+                wellGrad.addColorStop(1, 'rgba(6, 182, 212, 0.65)');
+                ctx.fillStyle = wellGrad;
+                ctx.fillRect(cellX + 6, 725 - wellHeight, cellW - 12, wellHeight);
+
+                // Tầng 4: Lớp đế mạch đọc tín hiệu
+                ctx.fillStyle = '#312e81';
+                ctx.strokeStyle = '#818cf8';
+                ctx.beginPath();
+                ctx.roundRect(cellX, 760, cellW, 90, 10);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#c7d2fe';
+                ctx.font = '15px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('Readout Circuit', cx, 810);
+
+                // Hoạt ảnh Photon rơi từ trên xuống -> Qua Microlens -> Qua Bayer -> Tạo Electron
+                for (let p = 0; p < 3; p++) {
+                    const cycle = (localT * 1.4 + i * 0.25 + p * 0.33) % 1;
+                    const py = 195 + cycle * 420; // Từ trên xuống Photodiode
+                    const pColor = py < 390 ? '#fef08a' : filter.color;
+
+                    ctx.save();
+                    ctx.fillStyle = pColor;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = pColor;
+                    ctx.beginPath();
+                    ctx.arc(cx + Math.sin(cycle * 8 + p) * 14, py, 5.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                // Các hạt Electron (màu xanh cyan phát sáng) tích tụ bên trong giếng Photodiode
+                const electronCount = Math.floor(fillRatio * 10) + 2;
+                for (let e = 0; e < electronCount; e++) {
+                    const ex = cellX + 22 + ((e * 37) % (cellW - 44));
+                    const ey = 710 - ((e * 23) % Math.max(20, wellHeight - 15)) + Math.sin(currentTime * 6 + e) * 3;
+                    ctx.save();
+                    ctx.fillStyle = '#67e8f9';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#22d3ee';
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, 4.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // ------------------------------------------
+        // CẢNH 3 & 4: SO SÁNH HOẠT ĐỘNG CCD vs CMOS
+        // ------------------------------------------
+        function drawScene3And4_CCDvsCMOS() {
+            // Vẽ CCD bên trái (hoặc chính giữa nếu chọn CCD ONLY)
+            if (viewMode === 'both') {
+                drawCCDPanel(90, 110, 840, 870);
+                drawCMOSPanel(990, 110, 840, 870);
+            } else if (viewMode === 'ccd') {
+                drawCCDPanel(110, 110, 840, 870);
+                // Hiển thị mờ panel bên cạnh để giữ không gian trực quan
+                ctx.save();
+                ctx.globalAlpha = 0.2;
+                drawCMOSPanel(990, 110, 840, 870);
+                ctx.restore();
+            } else if (viewMode === 'cmos') {
+                ctx.save();
+                ctx.globalAlpha = 0.2;
+                drawCCDPanel(90, 110, 840, 870);
+                ctx.restore();
+                drawCMOSPanel(970, 110, 840, 870);
+            }
+        }
+
+        // PANEL BÊN TRÁI: CẢM BIẾN CCD (16s - 30s hoạt động chính, 30s - 44s giữ trạng thái hoàn tất)
+        function drawCCDPanel(x, y, w, h) {
+            const isCCDActivePhase = (currentTime >= 16 && currentTime < 30);
+            const ccdProgress = Math.max(0, Math.min(1, (currentTime - 16) / 14)); // 0 -> 1 trong 14 giây
+
+            ctx.save();
+            // Khung chính CCD
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+            ctx.strokeStyle = isCCDActivePhase ? '#38bdf8' : '#1e40af';
+            ctx.lineWidth = isCCDActivePhase ? 4 : 2.5;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 24);
+            ctx.fill();
+            ctx.stroke();
+
+            // Tiêu đề CCD
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 24px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('CẢM BIẾN CCD (Charge-Coupled Device)', x + w / 2, y + 48);
+
+            // Nhãn giai đoạn con của CCD
+            let statusText = 'Chờ tín hiệu...';
+            if (ccdProgress < 0.25) statusText = '1. Tích lũy gói điện tích (Electron Packets) trong từng Pixel';
+            else if (ccdProgress < 0.75) statusText = '2. Dịch chuyển điện tích tuần tự theo cột xuống Thanh ghi ngang';
+            else statusText = '3. Dịch ngang từng gói điện tích tới Bộ khuếch đại & ADC';
+
+            ctx.fillStyle = '#bae6fd';
+            ctx.font = '600 16px Inter';
+            ctx.fillText(statusText, x + w / 2, y + 78);
+
+            // Vẽ ma trận 6x8 Pixel CCD
+            const gridX = x + 65;
+            const gridY = y + 115;
+            const cellW = 78;
+            const cellH = 74;
+            const gapX = 10;
+            const gapY = 10;
+
+            // Dịch xuống ROWS+1 chu kỳ: 6 chu kỳ đưa 6 hàng vào thanh ghi + 1 chu kỳ để hàng cuối đọc ngang xong
+            const shiftPhase = Math.min(1, Math.max(0, (ccdProgress - 0.2) / 0.75)); // 0 -> 1
+            const shiftedRowsFloat = shiftPhase * (ROWS + 1);
+            const shiftedRowsInt = Math.floor(shiftedRowsFloat);
+            const rowFrac = shiftedRowsFloat - shiftedRowsInt;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const px = gridX + c * (cellW + gapX);
+                    const py = gridY + r * (cellH + gapY);
+
+                    // Ô Pixel CCD
+                    ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(px, py, cellW, cellH, 10);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Mũi tên chỉ hướng dịch chuyển dọc giữa các pixel
+                    if (r < ROWS - 1 && ccdProgress >= 0.2 && ccdProgress < 0.9) {
+                        ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(px + cellW / 2, py + cellH - 4);
+                        ctx.lineTo(px + cellW / 2, py + cellH + gapY + 4);
+                        ctx.stroke();
+                    }
+
+                    // Vẽ gói điện tích (Charge Packet) nếu hàng này chưa bị dịch hết xuống dưới
+                    const sourceRow = r - shiftedRowsInt;
+                    if (sourceRow >= 0) {
+                        const accumulateScale = Math.min(1, ccdProgress / 0.22);
+                        const offsetY = rowFrac * (cellH + gapY);
+                        const packetY = py + cellH / 2 + offsetY;
+
+                        if (packetY <= gridY + ROWS * (cellH + gapY) + 25) {
+                            drawChargePacket(px + cellW / 2, packetY, 16 * accumulateScale, sceneColorMatrix[sourceRow][c]);
+                        }
+                    }
+                }
+            }
+
+            // THANH GHI DỊCH NGANG (Horizontal Shift Register) ở đáy ma trận
+            const regY = gridY + ROWS * (cellH + gapY) + 22;
+            const regW = COLS * (cellW + gapX) - gapX;
+            ctx.fillStyle = 'rgba(14, 116, 144, 0.35)';
+            ctx.strokeStyle = '#22d3ee';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(gridX, regY, regW, 66, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#67e8f9';
+            ctx.font = 'bold 15px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText('THANH GHI DỊCH NGANG (HORIZONTAL SHIFT REGISTER)', gridX + 14, regY + 22);
+
+            // Các gói điện tích chạy ngang trong thanh ghi sang phải (hàng đáy xuống trước, hàng trên cùng xuống sau)
+            if (shiftedRowsInt >= 1 && shiftedRowsInt <= ROWS) {
+                const regRow = ROWS - shiftedRowsInt;
+                const horizShift = rowFrac * (COLS - 1);
+                for (let c = 0; c < COLS; c++) {
+                    const shiftedC = c + horizShift;
+                    if (shiftedC <= COLS - 1) { // không vượt mép phải
+                        const hpx = gridX + shiftedC * (cellW + gapX) + cellW / 2;
+                        drawChargePacket(hpx, regY + 43, 14, sceneColorMatrix[regRow][c]);
+                    }
+                }
+            }
+
+            // BỘ KHUẾCH ĐẠI ĐẦU RA (Output Amplifier) ngay dưới lối ra của thanh ghi, ADC nằm bên trái
+            const outX = gridX + (COLS - 1) * (cellW + gapX) + cellW / 2;
+            const ampW = 150;
+            const ampX = outX - ampW / 2;
+            const ampY = regY + 88;
+            ctx.fillStyle = '#0f766e';
+            ctx.strokeStyle = '#2dd4bf';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(ampX, ampY, ampW, 58, 10);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 15px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('BỘ KHUẾCH ĐẠI', ampX + ampW / 2, ampY + 25);
+            ctx.font = '14px Inter';
+            ctx.fillStyle = '#99f6e4';
+            ctx.fillText('Charge -> Voltage', ampX + ampW / 2, ampY + 46);
+
+            // Khối ADC đơn của CCD
+            const adcW = 120;
+            const adcX = ampX - 30 - adcW;
+            ctx.fillStyle = '#1d4ed8';
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(adcX, ampY, adcW, 58, 10);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 16px Inter';
+            ctx.fillText('ADC ĐƠN', adcX + adcW / 2, ampY + 25);
+            ctx.font = '14px Inter';
+            ctx.fillStyle = '#bfdbfe';
+            ctx.fillText('10110010...', adcX + adcW / 2, ampY + 46);
+
+            // Đường dẫn tín hiệu: Thanh ghi -> Khuếch đại (dọc) -> ADC (ngang sang trái)
+            ctx.strokeStyle = '#2dd4bf';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(outX, regY + 66);
+            ctx.lineTo(outX, ampY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(ampX, ampY + 29);
+            ctx.lineTo(adcX + adcW, ampY + 29);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Gói điện tích: kích thước tỉ lệ với độ sáng của điểm ảnh nguồn (tintColor)
+        function drawChargePacket(cx, cy, radius, tintColor) {
+            let lum = 1;
+            if (tintColor && tintColor[0] === '#' && tintColor.length === 7) {
+                const n = parseInt(tintColor.slice(1), 16);
+                const rr = (n >> 16) & 255, gg = (n >> 8) & 255, bb = n & 255;
+                lum = (0.2126 * rr + 0.7152 * gg + 0.0722 * bb) / 255;
+            }
+            radius *= (0.55 + 0.45 * lum);
+            if (radius <= 1) return;
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(34, 211, 238, 0.25)';
+            ctx.strokeStyle = '#67e8f9';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // 4 hạt electron màu xanh cyan phát sáng bên trong gói
+            ctx.fillStyle = '#67e8f9';
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#22d3ee';
+            const offsets = [[-4, -4], [4, -4], [-4, 4], [4, 4]];
+            offsets.forEach(([ox, oy]) => {
+                ctx.beginPath();
+                ctx.arc(cx + ox * (radius / 16), cy + oy * (radius / 16), 2.8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        // PANEL BÊN PHẢI: CẢM BIẾN CMOS (30s - 44s hoạt động chính)
+        function drawCMOSPanel(x, y, w, h) {
+            const isCMOSActivePhase = (currentTime >= 30 && currentTime < 44);
+            // Nếu đang ở cảnh 3 (16-30s), CMOS đang ở giai đoạn tích lũy electron chuẩn bị đọc
+            const prepProgress = Math.max(0, Math.min(1, (currentTime - 16) / 14));
+            const cmosProgress = Math.max(0, Math.min(1, (currentTime - 30) / 14)); // 0 -> 1 trong 14 giây
+
+            ctx.save();
+            // Khung chính CMOS
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+            ctx.strokeStyle = isCMOSActivePhase ? '#c084fc' : '#581c87';
+            ctx.lineWidth = isCMOSActivePhase ? 4 : 2.5;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 24);
+            ctx.fill();
+            ctx.stroke();
+
+            // Tiêu đề CMOS
+            ctx.fillStyle = '#c084fc';
+            ctx.font = 'bold 24px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('CẢM BIẾN CMOS (Active Pixel Sensor)', x + w / 2, y + 48);
+
+            // Nhãn giai đoạn con của CMOS
+            let statusText = 'Tích lũy điện tích tại Photodiode từng điểm ảnh...';
+            if (isCMOSActivePhase) {
+                statusText = 'Chọn hàng (Row Select) -> Transistor chuyển điện áp -> Đọc cột song song';
+            } else if (currentTime >= 44) {
+                statusText = 'Hoàn tất chuyển đổi tín hiệu số song song trên tất cả các cột';
+            }
+            ctx.fillStyle = '#e9d5ff';
+            ctx.font = '600 16px Inter';
+            ctx.fillText(statusText, x + w / 2, y + 78);
+
+            const gridX = x + 85;
+            const gridY = y + 115;
+            const cellW = 76;
+            const cellH = 74;
+            const gapX = 10;
+            const gapY = 10;
+
+            // Xác định hàng đang được quét chọn (Row Select)
+            const activeRow = isCMOSActivePhase ? Math.min(ROWS - 1, Math.floor(cmosProgress * ROWS)) : -1;
+            const rowReadFrac = isCMOSActivePhase ? (cmosProgress * ROWS) % 1 : 0;
+
+            // Vẽ các đường bus cột (Column Bus Lines) chạy dọc phía sau các pixel
+            for (let c = 0; c < COLS; c++) {
+                const colBusX = gridX + c * (cellW + gapX) + cellW - 14;
+                ctx.strokeStyle = isCMOSActivePhase ? '#a855f7' : '#334155';
+                ctx.lineWidth = isCMOSActivePhase ? 3 : 2;
+                ctx.beginPath();
+                ctx.moveTo(colBusX, gridY);
+                ctx.lineTo(colBusX, gridY + ROWS * (cellH + gapY) + 25);
+                ctx.stroke();
+            }
+
+            for (let r = 0; r < ROWS; r++) {
+                const isRowSelected = (r === activeRow);
+                const rowYCenter = gridY + r * (cellH + gapY) + cellH / 2;
+
+                // Đường điều khiển chọn hàng (Row Select Line) từ bộ giải mã hàng bên trái
+                ctx.strokeStyle = isRowSelected ? '#f472b6' : '#334155';
+                ctx.lineWidth = isRowSelected ? 3.5 : 1.5;
+                ctx.beginPath();
+                ctx.moveTo(x + 36, rowYCenter);
+                ctx.lineTo(gridX + COLS * (cellW + gapX) - gapX, rowYCenter);
+                ctx.stroke();
+
+                // Nhãn Row Select bên trái
+                ctx.fillStyle = isRowSelected ? '#f472b6' : '#64748b';
+                ctx.font = 'bold 15px Inter';
+                ctx.textAlign = 'left';
+                ctx.fillText(`R${r}`, x + 10, rowYCenter + 5);
+
+                for (let c = 0; c < COLS; c++) {
+                    const px = gridX + c * (cellW + gapX);
+                    const py = gridY + r * (cellH + gapY);
+
+                    // Khung Pixel CMOS (gồm Photodiode + Cụm 3 Transistor: RST, SF, SEL)
+                    ctx.fillStyle = isRowSelected ? 'rgba(168, 85, 247, 0.28)' : 'rgba(30, 41, 59, 0.88)';
+                    ctx.strokeStyle = isRowSelected ? '#e879f9' : '#475569';
+                    ctx.lineWidth = isRowSelected ? 2.5 : 1.5;
+                    ctx.beginPath();
+                    ctx.roundRect(px, py, cellW, cellH, 10);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Vùng Photodiode bên trái trong pixel (tích lũy electron tại chỗ, KHÔNG dịch sang ô khác)
+                    ctx.fillStyle = 'rgba(6, 182, 212, 0.25)';
+                    ctx.fillRect(px + 6, py + 8, 34, 58);
+
+                    // Hạt electron cố định trong photodiode của từng pixel
+                    const eCount = prepProgress > 0.1 ? 3 : 0;
+                    ctx.fillStyle = '#67e8f9';
+                    for (let e = 0; e < eCount; e++) {
+                        ctx.beginPath();
+                        ctx.arc(px + 16 + (e % 2) * 14, py + 22 + e * 14, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    // Khuếch đại Transistor tại chỗ (Source Follower & Select Switch) bên phải trong pixel
+                    const gateClosed = isRowSelected;
+                    ctx.fillStyle = gateClosed ? '#f472b6' : '#64748b';
+                    ctx.beginPath();
+                    ctx.roundRect(px + 44, py + 10, 26, 24, 4);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 12px Inter';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(gateClosed ? 'ON' : '3T', px + 57, py + 27);
+
+                    // Biểu tượng công tắc đóng/mở nối ra đường Bus cột
+                    ctx.strokeStyle = gateClosed ? '#f472b6' : '#475569';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(px + 57, py + 34);
+                    if (gateClosed) {
+                        ctx.lineTo(px + 62, py + 56); // Đóng mạch truyền điện áp ra cột
+                    } else {
+                        ctx.lineTo(px + 49, py + 52); // Ngắt mạch
+                    }
+                    ctx.stroke();
+                }
+
+                // Hạt tín hiệu điện áp chạy dọc đường Bus cột từ hàng đang chọn xuống ADC cột
+                if (isRowSelected) {
+                    const startBusY = rowYCenter;
+                    const endBusY = gridY + ROWS * (cellH + gapY) + 25;
+                    const sigY = startBusY + rowReadFrac * (endBusY - startBusY);
+
+                    for (let c = 0; c < COLS; c++) {
+                        const colBusX = gridX + c * (cellW + gapX) + cellW - 14;
+                        ctx.save();
+                        ctx.fillStyle = '#f472b6';
+                        ctx.shadowBlur = 12;
+                        ctx.shadowColor = '#e879f9';
+                        ctx.beginPath();
+                        ctx.arc(colBusX, sigY, 5.5, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
+            }
+
+            // MẠCH ĐỌC CỘT & BỘ CHUYỂN ĐỔI ADC SONG SONG (Column-Parallel ADC)
+            const adcBarY = gridY + ROWS * (cellH + gapY) + 25;
+            const adcBarW = COLS * (cellW + gapX) - gapX;
+
+            ctx.fillStyle = 'rgba(109, 40, 217, 0.45)';
+            ctx.strokeStyle = '#c084fc';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(gridX, adcBarY, adcBarW, 125, 14);
+            ctx.fill();
+            ctx.stroke();
+
+            // Vẽ từng bộ ADC riêng biệt cho mỗi cột
+            for (let c = 0; c < COLS; c++) {
+                const cx = gridX + c * (cellW + gapX);
+                ctx.fillStyle = isCMOSActivePhase ? '#7e22ce' : '#3b0764';
+                ctx.strokeStyle = '#d8b4fe';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect(cx + 4, adcBarY + 14, cellW - 8, 56, 8);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 14px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(`ADC ${c + 1}`, cx + cellW / 2, adcBarY + 38);
+                ctx.font = '14px monospace';
+                ctx.fillStyle = '#f0abfc';
+                ctx.fillText(isCMOSActivePhase ? '1011' : '0000', cx + cellW / 2, adcBarY + 58);
+            }
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 15px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('ADC SONG SONG THEO CỘT (COLUMN-PARALLEL ADC)', gridX + adcBarW / 2, adcBarY + 102);
+
+            ctx.restore();
+        }
+
+        // ------------------------------------------
+        // CẢNH 5: XỬ LÝ ISP & TÁI TẠO HÌNH ẢNH HOÀN CHỈNH (44 - 56s)
+        // ------------------------------------------
+        function drawScene5_ImageReconstruction() {
+            const localT = currentTime - 44; // 0 -> 12s
+            const buildProgress = Math.min(1, localT / 8.5); // Tái tạo xong trong 8.5s đầu
+
+            ctx.save();
+
+            // 1. Hai khối nguồn dữ liệu số CCD & CMOS phía trên
+            drawDataSourceBadge(480, 110, 'LUỒNG DỮ LIỆU SỐ CCD', '#38bdf8');
+            drawDataSourceBadge(1440, 110, 'LUỒNG DỮ LIỆU SỐ CMOS', '#c084fc');
+
+            // 2. Bộ xử lý hình ảnh trung tâm (ISP - Image Signal Processor)
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.roundRect(740, 190, 440, 110, 20);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#34d399';
+            ctx.font = 'bold 22px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('BỘ XỬ LÝ HÌNH ẢNH (ISP)', 960, 238);
+            ctx.font = '15px Inter';
+            ctx.fillStyle = '#a7f3d0';
+            ctx.fillText('Demosaicing RGB • Cân bằng trắng • Khử nhiễu', 960, 270);
+
+            // Đường mạch truyền dữ liệu chạy hạt sáng từ CCD & CMOS -> ISP -> 2 Màn hình
+            drawAnimatedDataBus(480, 175, 740, 245, '#38bdf8', localT);
+            drawAnimatedDataBus(1440, 175, 1180, 245, '#c084fc', localT);
+            drawAnimatedDataBus(860, 300, 520, 380, '#34d399', localT);
+            drawAnimatedDataBus(1060, 300, 1400, 380, '#34d399', localT);
+
+            // 3. Hai màn hình hiển thị kết quả song song
+            drawReconstructedDisplay(180, 380, 680, 560, 'MÀN HÌNH KẾT QUẢ — CÔNG NGHỆ CCD', '#38bdf8', buildProgress);
+            drawReconstructedDisplay(1060, 380, 680, 560, 'MÀN HÌNH KẾT QUẢ — CÔNG NGHỆ CMOS', '#c084fc', buildProgress);
+
+            ctx.restore();
+        }
+
+        function drawDataSourceBadge(cx, y, label, color) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(cx - 180, y, 360, 65, 16);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = color;
+            ctx.font = 'bold 18px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, cx, y + 38);
+            ctx.restore();
+        }
+
+        function drawAnimatedDataBus(x1, y1, x2, y2, color, timeVal) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = 0.4;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            // Các hạt dữ liệu chạy dọc dây dẫn
+            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = color;
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = color;
+            for (let i = 0; i < 4; i++) {
+                const p = (timeVal * 0.9 + i * 0.25) % 1;
+                const px = x1 + (x2 - x1) * p;
+                const py = y1 + (y2 - y1) * p;
+                ctx.beginPath();
+                ctx.arc(px, py, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawReconstructedDisplay(x, y, w, h, title, borderColor, progress) {
+            ctx.save();
+            // Khung viền màn hình
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 22);
+            ctx.fill();
+            ctx.stroke();
+
+            const imgX = x + 30;
+            const imgY = y + 30;
+            const imgW = w - 60;
+            const imgH = h - 105;
+
+            // Vẽ nền tối trong màn hình
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(imgX, imgY, imgW, imgH);
+
+            // Vẽ các ô pixel màu RGB ghép dần thành bức ảnh hoàn chỉnh
+            const cols = 16;
+            const rows = 12;
+            const cw = imgW / cols;
+            const ch = imgH / rows;
+            const totalCells = cols * rows;
+            const revealedCells = Math.floor(progress * totalCells);
+
+            // Vẽ bức ảnh cảnh vật hoàn chỉnh bên dưới mặt nạ pixel
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(imgX, imgY, imgW, imgH);
+            ctx.clip();
+
+            // Bầu trời
+            const sky = ctx.createLinearGradient(imgX, imgY, imgX, imgY + imgH * 0.65);
+            sky.addColorStop(0, '#0284c7');
+            sky.addColorStop(1, '#38bdf8');
+            ctx.fillStyle = sky;
+            ctx.fillRect(imgX, imgY, imgW, imgH);
+
+            // Mặt trời
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(imgX + 120, imgY + 95, 42, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Dãy núi
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            ctx.moveTo(imgX, imgY + imgH * 0.68);
+            ctx.lineTo(imgX + imgW * 0.35, imgY + imgH * 0.32);
+            ctx.lineTo(imgX + imgW * 0.72, imgY + imgH * 0.68);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.moveTo(imgX + imgW * 0.42, imgY + imgH * 0.68);
+            ctx.lineTo(imgX + imgW * 0.76, imgY + imgH * 0.28);
+            ctx.lineTo(imgX + imgW, imgY + imgH * 0.68);
+            ctx.closePath();
+            ctx.fill();
+
+            // Đồng cỏ & Cây
+            ctx.fillStyle = '#16a34a';
+            ctx.fillRect(imgX, imgY + imgH * 0.68, imgW, imgH * 0.32);
+
+            for (let i = 0; i < 6; i++) {
+                let tx = imgX + 60 + i * 100;
+                let ty = imgY + imgH * 0.7;
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(tx - 5, ty, 10, 32);
+                ctx.fillStyle = '#15803d';
+                ctx.beginPath();
+                ctx.moveTo(tx, ty - 55);
+                ctx.lineTo(tx - 26, ty + 4);
+                ctx.lineTo(tx + 26, ty + 4);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Che các ô pixel chưa được dữ liệu quét tới
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const idx = r * cols + c;
+                    const rx = imgX + c * cw;
+                    const ry = imgY + r * ch;
+
+                    if (idx > revealedCells) {
+                        ctx.fillStyle = '#090d16';
+                        ctx.fillRect(rx, ry, cw + 0.5, ch + 0.5);
+                        ctx.strokeStyle = 'rgba(51, 65, 85, 0.35)';
+                        ctx.strokeRect(rx, ry, cw, ch);
+                    } else if (idx >= revealedCells - 4 && progress < 0.99) {
+                        // Hiệu ứng phát sáng tại hàng pixel đang được ghép hình
+                        ctx.fillStyle = borderColor;
+                        ctx.globalAlpha = 0.45;
+                        ctx.fillRect(rx, ry, cw, ch);
+                        ctx.globalAlpha = 1.0;
+                    }
+                }
+            }
+            ctx.restore();
+
+            // Tiêu đề màn hình bên dưới
+            ctx.fillStyle = borderColor;
+            ctx.font = 'bold 18px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText(title, x + w / 2, y + h - 30);
+
+            ctx.restore();
+        }
+
+        // Khởi tạo ban đầu
+        resizeCanvas();
+        updateUI();
+        showMessage('Nhấn nút PLAY để bắt đầu mô phỏng hoạt hình khoa học 2D.');
+
+        // Vẽ lại sau khi font Inter đã nạp xong để khung hình đầu không dùng font dự phòng
+        Promise.all([
+            document.fonts.load('700 18px Inter'),
+            document.fonts.load('600 16px Inter'),
+            document.fonts.load('15px Inter')
+        ]).then(() => render()).catch(() => {});
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render());
+    </script>
+</body>
+</html>

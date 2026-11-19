@@ -1,0 +1,2227 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Máy Chụp X-Quang Y Tế - Mô Phỏng Quá Trình Tạo Ảnh X-Quang</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712;
+            color: #f8fafc;
+            overflow: hidden;
+            user-select: none;
+        }
+        .font-mono-tech { font-family: 'JetBrains Mono', monospace; }
+        .med-panel {
+            background: rgba(15, 23, 42, 0.86);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+        .btn-med { transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-med:active { transform: scale(0.96); }
+        .active-exam {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            border-color: #38bdf8;
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.45);
+        }
+        .active-btn {
+            background-color: rgba(56, 189, 248, 0.22);
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+        canvas { touch-action: none; }
+    </style>
+</head>
+<body class="w-screen flex flex-col justify-between bg-[#030712]" style="height:100vh;height:100dvh;">
+
+    <!-- Top Control & Telemetry Header -->
+    <header class="w-full px-4 py-2.5 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/90 bg-slate-950/90 backdrop-blur-md">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-400 to-cyan-600 flex items-center justify-center shadow-lg border border-sky-300/40">
+                <i class="fa-solid fa-x-ray text-slate-950 text-lg"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="font-bold text-sm md:text-base tracking-wide text-slate-100">MEDICAL X-RAY RADIOGRAPHY SIMULATOR</h1>
+                    <span id="badgeExam" class="px-2 py-0.5 text-[10px] font-mono-tech font-bold rounded bg-sky-500/20 text-sky-400 border border-sky-500/40">CHEST PA ĐỨNG (LỒNG NGỰC)</span>
+                </div>
+                <p class="text-[11px] text-slate-400 font-mono-tech">
+                    CHUẨN FULL HD 1920&times;1080 &bull; <span id="generatorSpec" class="text-cyan-400">120 kVp &bull; 3.2 mAs</span> &bull; DETECTOR: <span class="text-emerald-400">FPD CsI(Tl)</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            <div class="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button id="btnChest" onclick="setExamRegion('CHEST')" class="btn-med px-3 py-1.5 rounded-lg text-xs font-bold border border-transparent active-exam flex items-center gap-1.5">
+                    <i class="fa-solid fa-lungs"></i> CHEST (LỒNG NGỰC)
+                </button>
+                <button id="btnHand" onclick="setExamRegion('HAND')" class="btn-med px-3 py-1.5 rounded-lg text-xs font-bold border border-transparent text-slate-400 hover:text-white flex items-center gap-1.5">
+                    <i class="fa-solid fa-hand"></i> HAND (BÀN TAY)
+                </button>
+            </div>
+
+            <div class="h-6 w-[1px] bg-slate-800 hidden sm:block"></div>
+
+            <div class="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button id="btnZoomIn" onclick="adjustZoom(0.2)" class="btn-med px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/90 text-slate-200 hover:text-sky-300 border border-slate-700 flex items-center gap-1.5" title="Phóng to">
+                    <i class="fa-solid fa-magnifying-glass-plus text-sky-400"></i> ZOOM IN
+                </button>
+                <button id="btnZoomOut" onclick="adjustZoom(-0.2)" class="btn-med px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/90 text-slate-200 hover:text-sky-300 border border-slate-700 flex items-center gap-1.5" title="Thu nhỏ">
+                    <i class="fa-solid fa-magnifying-glass-minus text-sky-400"></i> ZOOM OUT
+                </button>
+                <button id="btnAuto" onclick="enableAutoMode()" class="btn-med px-3 py-1.5 rounded-lg text-xs font-semibold active-btn border flex items-center gap-1.5" title="Tự chuyển cảnh liên tục">
+                    <i class="fa-solid fa-arrows-rotate"></i> AUTO
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main 16:9 Viewport Stage (JS tự co giãn để canvas không bị méo) -->
+    <main id="stageMain" class="flex-1 min-h-0 w-full relative flex items-center justify-center p-2 md:p-4 overflow-hidden">
+        <div id="canvasWrapper" class="relative rounded-2xl overflow-hidden border border-slate-800 shadow-[0_0_50px_rgba(14,165,233,0.18)] bg-[#060d1a]" style="width:960px;height:540px;">
+            <canvas id="xrayCanvas" class="w-full h-full block"></canvas>
+
+            <div class="absolute top-3 left-3 md:top-5 md:left-5 med-panel px-3.5 py-2 rounded-xl flex items-center gap-3 pointer-events-none">
+                <div class="relative flex h-3 w-3">
+                    <span id="beamPing" class="hidden animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span id="beamDot" class="relative inline-flex rounded-full h-3 w-3 bg-sky-400"></span>
+                </div>
+                <div>
+                    <div id="hudSceneTag" class="text-[10px] font-mono-tech uppercase tracking-wider text-sky-400 font-bold">CẢNH 1 / 7 &bull; PHÒNG CHỤP X-QUANG</div>
+                    <div id="hudSceneTitle" class="text-xs md:text-sm font-bold text-white">TOÀN CẢNH PHÒNG CHỤP X-QUANG Y TẾ</div>
+                </div>
+            </div>
+
+            <div class="absolute top-3 right-3 md:top-5 md:right-5 med-panel px-3.5 py-2 rounded-xl hidden sm:flex items-center gap-4 text-xs font-mono-tech pointer-events-none">
+                <div>
+                    <span class="text-slate-400 text-[10px] block">CAO ÁP ỐNG PHÁT</span>
+                    <span id="hudKv" class="text-sky-300 font-bold">120 kVp</span>
+                </div>
+                <div class="h-6 w-[1px] bg-slate-700"></div>
+                <div>
+                    <span class="text-slate-400 text-[10px] block">TRẠNG THÁI TIA X</span>
+                    <span id="hudBeamState" class="text-slate-300 font-bold">STANDBY</span>
+                </div>
+                <div class="h-6 w-[1px] bg-slate-700"></div>
+                <div>
+                    <span class="text-slate-400 text-[10px] block">ZOOM CAMERA</span>
+                    <span id="hudZoomVal" class="text-emerald-300 font-bold">1.00&times;</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Playback & Timeline Footer -->
+    <footer class="w-full px-4 py-2.5 bg-slate-950/95 border-t border-slate-800/90 z-20">
+        <div class="max-w-7xl mx-auto flex flex-col gap-2">
+            <div class="flex items-center gap-3">
+                <span id="timeCurrent" class="text-[11px] font-mono-tech text-slate-400 w-10">00:00</span>
+                <div id="timeline" class="relative flex-1 h-2.5 bg-slate-900 rounded-full border border-slate-800 cursor-pointer group" style="touch-action:none;">
+                    <!-- 6 mốc chia 7 cảnh (mỗi cảnh 8s / 56s) -->
+                    <div class="absolute top-0 bottom-0 w-[1px] bg-slate-600/70 pointer-events-none" style="left:14.2857%"></div>
+                    <div class="absolute top-0 bottom-0 w-[1px] bg-slate-600/70 pointer-events-none" style="left:28.5714%"></div>
+                    <div class="absolute top-0 bottom-0 w-[1px] bg-slate-600/70 pointer-events-none" style="left:42.8571%"></div>
+                    <div class="absolute top-0 bottom-0 w-[1px] bg-slate-600/70 pointer-events-none" style="left:57.1428%"></div>
+                    <div class="absolute top-0 bottom-0 w-[1px] bg-slate-600/70 pointer-events-none" style="left:71.4285%"></div>
+                    <div class="absolute top-0 bottom-0 w-[1px] bg-slate-600/70 pointer-events-none" style="left:85.7142%"></div>
+                    <div id="timelineFill" class="h-full bg-gradient-to-r from-sky-500 via-cyan-400 to-teal-300 rounded-full w-0 relative pointer-events-none">
+                        <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow-[0_0_10px_#38bdf8] scale-90 group-hover:scale-110 transition-transform"></div>
+                    </div>
+                </div>
+                <span id="timeTotal" class="text-[11px] font-mono-tech text-slate-400 w-10 text-right">00:56</span>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <button id="btnPlay" onclick="playSim()" class="btn-med px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
+                        <i class="fa-solid fa-play"></i> PLAY
+                    </button>
+                    <button id="btnPause" onclick="pauseSim()" class="btn-med px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-pause"></i> PAUSE
+                    </button>
+                    <button id="btnReplay" onclick="replaySim()" class="btn-med px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-rotate-left"></i> REPLAY
+                    </button>
+                </div>
+
+                <div class="hidden lg:flex items-center gap-1">
+                    <button onclick="jumpToScene(1)" id="pill-1" class="scene-pill px-2.5 py-1 rounded text-[11px] font-mono-tech bg-sky-500/20 text-sky-300 border border-sky-500/40 font-bold">1. PHÒNG CHỤP</button>
+                    <button onclick="jumpToScene(2)" id="pill-2" class="scene-pill px-2.5 py-1 rounded text-[11px] font-mono-tech bg-slate-900 text-slate-400 hover:text-white border border-slate-800">2. ỐNG PHÁT TIA X</button>
+                    <button onclick="jumpToScene(3)" id="pill-3" class="scene-pill px-2.5 py-1 rounded text-[11px] font-mono-tech bg-slate-900 text-slate-400 hover:text-white border border-slate-800">3. TẠO TIA X</button>
+                    <button onclick="jumpToScene(4)" id="pill-4" class="scene-pill px-2.5 py-1 rounded text-[11px] font-mono-tech bg-slate-900 text-slate-400 hover:text-white border border-slate-800">4. XUYÊN QUA MÔ</button>
+                    <button onclick="jumpToScene(5)" id="pill-5" class="scene-pill px-2.5 py-1 rounded text-[11px] font-mono-tech bg-slate-900 text-slate-400 hover:text-white border border-slate-800">5. ĐẦU THU FPD</button>
+                    <button onclick="jumpToScene(6)" id="pill-6" class="scene-pill px-2.5 py-1 rounded text-[11px] font-mono-tech bg-slate-900 text-slate-400 hover:text-white border border-slate-800">6. ẢNH X-QUANG</button>
+                    <button onclick="jumpToScene(7)" id="pill-7" class="scene-pill px-2.5 py-1 rounded text-[11px] font-mono-tech bg-slate-900 text-slate-400 hover:text-white border border-slate-800">7. HOÀN TẤT</button>
+                </div>
+
+                <div class="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
+                    <span class="text-[11px] font-mono-tech text-slate-400"><i class="fa-solid fa-gauge-high text-sky-400 mr-1"></i>SPEED:</span>
+                    <button onclick="setSpeed(0.5)" id="spd-0.5" class="spd-btn px-2 py-0.5 rounded text-[11px] font-mono-tech text-slate-400 hover:text-white">0.5x</button>
+                    <button onclick="setSpeed(1)" id="spd-1" class="spd-btn px-2 py-0.5 rounded text-[11px] font-mono-tech bg-sky-500/20 text-sky-300 font-bold">1.0x</button>
+                    <button onclick="setSpeed(1.5)" id="spd-1.5" class="spd-btn px-2 py-0.5 rounded text-[11px] font-mono-tech text-slate-400 hover:text-white">1.5x</button>
+                    <button onclick="setSpeed(2)" id="spd-2" class="spd-btn px-2 py-0.5 rounded text-[11px] font-mono-tech text-slate-400 hover:text-white">2.0x</button>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Polyfill cho trình duyệt cũ chưa có ctx.roundRect
+        if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (Array.isArray(r)) r = r[0] || 0;
+                r = Math.min(r || 0, w / 2, h / 2);
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                this.closePath();
+            };
+        }
+
+        const canvas = document.getElementById('xrayCanvas');
+        const ctx = canvas.getContext('2d');
+        const WIDTH = 1920;
+        const HEIGHT = 1080;
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+
+        const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const ease = t => t * t * (3 - 2 * t);
+
+        // ---------- Co giãn khung 16:9 (tránh méo canvas) ----------
+        function fitStage() {
+            const main = document.getElementById('stageMain');
+            const wrap = document.getElementById('canvasWrapper');
+            const cs = getComputedStyle(main);
+            const aw = main.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+            const ah = main.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+            const w = Math.max(320, Math.min(aw, ah * 16 / 9, 1720));
+            wrap.style.width = w + 'px';
+            wrap.style.height = (w * 9 / 16) + 'px';
+        }
+        window.addEventListener('resize', fitStage);
+        if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fitStage).observe(document.getElementById('stageMain'));
+
+        // ==================== LỊCH 7 CẢNH (56 giây) ====================
+        const SCENES = [
+            { id: 1, start: 0,  end: 8,  tag: "CẢNH 1 / 7 • PHÒNG CHỤP X-QUANG Y TẾ", title: "TOÀN CẢNH PHÒNG CHỤP & TƯ THẾ BỆNH NHÂN" },
+            { id: 2, start: 8,  end: 16, tag: "CẢNH 2 / 7 • CẤU TẠO BÓNG PHÁT TIA X", title: "PHÓNG TO CẤU TẠO ỐNG PHÁT TIA X CHÂN KHÔNG" },
+            { id: 3, start: 16, end: 24, tag: "CẢNH 3 / 7 • VẬT LÝ PHÁT XẠ TIA X", title: "GIA TỐC ELECTRON & TẠO BỨC XẠ HÃM / ĐẶC TRƯNG" },
+            { id: 4, start: 24, end: 32, tag: "CẢNH 4 / 7 • SUY GIẢM CHÙM TIA QUA CƠ THỂ", title: "TƯƠNG TÁC TIA X VỚI XƯƠNG, MÔ MỀM VÀ KHÔNG KHÍ" },
+            { id: 5, start: 32, end: 40, tag: "CẢNH 5 / 7 • ĐẦU THU PHẲNG KỸ THUẬT SỐ", title: "ĐỌC TÍN HIỆU FPD & TẠO ẢNH SỐ (TIA X ĐÃ TẮT)" },
+            { id: 6, start: 40, end: 48, tag: "CẢNH 6 / 7 • TÁI TẠO HÌNH ẢNH CHẨN ĐOÁN", title: "PHÓNG TO ẢNH X-QUANG GIẢI PHẪU" },
+            { id: 7, start: 48, end: 56, tag: "CẢNH 7 / 7 • HOÀN TẤT QUY TRÌNH CHỤP", title: "TẠO ẢNH BẰNG TIA X" }
+        ];
+
+        const KV = { CHEST: 120, HAND: 55 };
+        const MAS = { CHEST: 3.2, HAND: 1.6 };
+        const K_EDGE_W = 69.5;   // vạch K của vonfram chỉ xuất hiện khi kVp > 69,5
+
+        // Hình học ống phát (cảnh 2, 3): F là tiêu điểm (focal spot) trên bia
+        const TB = { cx: 960, cy: 540, fx: 965, fy: 485 };
+
+        // ==================== TRẠNG THÁI ====================
+        const state = {
+            isPlaying: true,
+            autoMode: true,
+            lockedScene: null,
+            time: 0,
+            totalDuration: 56,
+            speed: 1.0,
+            examRegion: 'CHEST',
+            userZoomOffset: 0,
+            currentScene: 1,
+            electrons: [],
+            xrayPhotons: [],
+            rays: [],
+            scattered: [],
+            sparks: []
+        };
+
+        const camera = { x: 960, y: 540, zoom: 1, tx: 960, ty: 540, tz: 1 };
+
+        function getSceneAtTime(t) {
+            for (const s of SCENES) if (t < s.end) return s.id;
+            return 7;
+        }
+
+        // ==================== PHÂN TỬ & HIỆU ỨNG ====================
+        function addSpark(x, y, color, maxR) {
+            state.sparks.push({ x, y, age: 0, color, maxR: maxR || 16 });
+            if (state.sparks.length > 160) state.sparks.shift();
+        }
+        function updateSparks(dt) {
+            for (let i = state.sparks.length - 1; i >= 0; i--) {
+                state.sparks[i].age += dt;
+                if (state.sparks[i].age > 0.5) state.sparks.splice(i, 1);
+            }
+        }
+        function drawSparks() {
+            state.sparks.forEach(s => {
+                const k = s.age / 0.5;
+                ctx.save();
+                ctx.globalAlpha = 1 - k;
+                ctx.strokeStyle = s.color;
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, 3 + k * s.maxR, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+
+        function distToHousing(ang) {
+            const dx = Math.cos(ang), dy = Math.sin(ang);
+            const x0 = TB.cx - 415, x1 = TB.cx + 415, y0 = TB.cy - 195, y1 = TB.cy + 178;
+            let t = Infinity;
+            if (dx > 1e-6) t = Math.min(t, (x1 - TB.fx) / dx); else if (dx < -1e-6) t = Math.min(t, (x0 - TB.fx) / dx);
+            if (dy > 1e-6) t = Math.min(t, (y1 - TB.fy) / dy); else if (dy < -1e-6) t = Math.min(t, (y0 - TB.fy) / dy);
+            return t;
+        }
+
+        function initTubeParticles() {
+            const kvp = KV[state.examRegion];
+            state.electrons = [];
+            for (let i = 0; i < 45; i++) {
+                state.electrons.push({
+                    progress: Math.random(),
+                    yOffset: (Math.random() - 0.5) * 26,
+                    speed: 0.7 + Math.random() * 0.35
+                });
+            }
+            state.xrayPhotons = [];
+            // Chùm hữu ích: đi xuống qua cửa sổ. Tia đặc trưng K chỉ có khi kVp > 69,5.
+            for (let i = 0; i < 46; i++) {
+                state.xrayPhotons.push({
+                    kind: 'useful',
+                    da: (Math.random() - 0.5) * 2,
+                    type: (kvp >= K_EDGE_W && Math.random() < 0.2) ? 'char' : 'brems',
+                    progress: Math.random(),
+                    speed: 0.6 + Math.random() * 0.35
+                });
+            }
+            // Photon phát đẳng hướng (bị vỏ chì hấp thụ): không hướng về anốt, không trùng chùm hữu ích
+            for (let i = 0; i < 26; i++) {
+                const ang = Math.PI / 2 + 0.32 + Math.random() * (Math.PI * 1.0 - 0.32);
+                state.xrayPhotons.push({
+                    kind: 'stray',
+                    ang,
+                    maxDist: distToHousing(ang),
+                    type: (kvp >= K_EDGE_W && Math.random() < 0.2) ? 'char' : 'brems',
+                    progress: Math.random(),
+                    speed: 0.45 + Math.random() * 0.3
+                });
+            }
+        }
+
+        // ==================== MÔ HÌNH SUY GIẢM (cảnh 4) ====================
+        const S4 = { rayTop: 170, detY: 725, gridY: 688, bcx: 960, bcy: 480 };
+        const MU = {
+            CHEST: { soft: 0.0062, lung: 0.0013, heart: 0.0066, bone: 0.032 },
+            HAND:  { soft: 0.0098, bone: 0.075 }
+        };
+        const CHEST_RIBS = [];
+        [-134, -110, -86, -62, -38, 38, 62, 86, 110, 134].forEach(d => {
+            const a = d * Math.PI / 180;
+            CHEST_RIBS.push({ x: S4.bcx + Math.sin(a) * (340 - 14), y: S4.bcy - Math.cos(a) * (165 - 12) });
+        });
+        const HAND_BONES = [-150, -75, 0, 75, 150];
+
+        function rayX(normX, y) { return 960 + normX * (320 + (y - S4.rayTop) * 0.065); }
+
+        // μ (theo pixel) tại điểm (x,y) của mặt cắt ngang cơ thể. Dùng chung cho tia, photon và biểu đồ cường độ.
+        function muAt(region, x, y) {
+            const dx = x - S4.bcx, dy = y - S4.bcy;
+            if (region === 'CHEST') {
+                if ((dx / 340) * (dx / 340) + (dy / 165) * (dy / 165) > 1) return 0;
+                const m = MU.CHEST;
+                // xương: thân đốt sống, gai sau, sườn, xương ức
+                if (dx * dx + (dy + 112) * (dy + 112) < 30 * 30) return m.bone;
+                if (Math.abs(dx) < 9 && dy > -164 && dy < -128) return m.bone;
+                if ((dx / 36) * (dx / 36) + ((dy - 152) / 9) * ((dy - 152) / 9) < 1) return m.bone;
+                for (const r of CHEST_RIBS) if ((x - r.x) * (x - r.x) + (y - r.y) * (y - r.y) < 9.5 * 9.5) return m.bone;
+                // tim (mô mềm / máu) ưu tiên trước phổi
+                if (((dx - 60) / 74) * ((dx - 60) / 74) + ((dy - 55) / 64) * ((dy - 55) / 64) < 1) return m.heart;
+                // hai phổi (chứa khí)
+                if (((Math.abs(dx) - 150) / 98) * ((Math.abs(dx) - 150) / 98) + ((dy + 10) / 104) * ((dy + 10) / 104) < 1) return m.lung;
+                return m.soft;
+            } else {
+                if ((dx / 200) * (dx / 200) + (dy / 46) * (dy / 46) > 1) return 0;
+                const m = MU.HAND;
+                for (const bx of HAND_BONES) if ((dx - bx) * (dx - bx) + dy * dy < 15 * 15) return m.bone;
+                return m.soft;
+            }
+        }
+
+        function newPhoton(ray, ph) {
+            ph.u = Math.random();
+            const tauAbs = -Math.log(Math.max(1e-4, ph.u));
+            ph.ya = null;
+            for (let i = 0; i < ray.taus.length; i++) {
+                if (ray.taus[i] >= tauAbs) { ph.ya = S4.rayTop + i * 4; break; }
+            }
+            ph.hit = false;
+        }
+
+        function buildRays() {
+            state.rays = [];
+            const N = 41;
+            for (let i = 0; i < N; i++) {
+                const nx = -1.1 + 2.2 * i / (N - 1);
+                const taus = [];
+                let tau = 0;
+                for (let y = S4.rayTop; y <= S4.detY; y += 4) {
+                    tau += muAt(state.examRegion, rayX(nx, y), y) * 4;
+                    taus.push(tau);
+                }
+                const ray = { normX: nx, taus, total: tau, photons: [] };
+                for (let k = 0; k < 2; k++) {
+                    const ph = { ph: Math.random() * 0.5 + k * 0.5, speed: 0.3 + Math.random() * 0.08, u: 0, ya: null, hit: false };
+                    newPhoton(ray, ph);
+                    if (ph.ya !== null && S4.rayTop + ph.ph * (S4.detY - S4.rayTop) >= ph.ya) ph.hit = true;
+                    ray.photons.push(ph);
+                }
+                state.rays.push(ray);
+            }
+            state.scattered = [];
+        }
+
+        // ==================== ẢNH X-QUANG (offscreen, dùng chung cho mọi cảnh) ====================
+        const RADIO = {};
+        function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+
+        function drawChestRadiograph(c) {
+            c.save();
+            c.fillStyle = '#05070a';
+            c.fillRect(-320, -320, 640, 640);
+
+            const torsoGrad = c.createRadialGradient(0, 0, 50, 0, 0, 310);
+            torsoGrad.addColorStop(0, '#52525b');
+            torsoGrad.addColorStop(0.75, '#3f3f46');
+            torsoGrad.addColorStop(1, '#18181b');
+            c.fillStyle = torsoGrad;
+            c.beginPath();
+            c.moveTo(-140, -280);
+            c.quadraticCurveTo(-265, -210, -255, 260);
+            c.lineTo(255, 260);
+            c.quadraticCurveTo(265, -210, 140, -280);
+            c.closePath();
+            c.fill();
+
+            c.fillStyle = '#090d14';
+            c.beginPath();
+            c.moveTo(-24, -195);
+            c.bezierCurveTo(-150, -195, -205, -40, -205, 165);
+            c.quadraticCurveTo(-110, 130, -24, 155);
+            c.closePath();
+            c.fill();
+            c.beginPath();
+            c.moveTo(24, -195);
+            c.bezierCurveTo(150, -195, 205, -40, 205, 175);
+            c.quadraticCurveTo(120, 140, 65, 150);
+            c.closePath();
+            c.fill();
+
+            // Bóng tim (nằm bên TRÁI bệnh nhân = bên PHẢI ảnh, ảnh PA)
+            c.fillStyle = '#71717a';
+            c.beginPath();
+            c.ellipse(32, 55, 68, 82, -0.28, 0, Math.PI * 2);
+            c.fill();
+
+            for (let vy = -250; vy <= 220; vy += 32) {
+                c.fillStyle = 'rgba(228, 228, 231, 0.82)';
+                c.beginPath();
+                c.roundRect(-24, vy, 48, 26, 6);
+                c.fill();
+            }
+
+            c.strokeStyle = 'rgba(244, 244, 245, 0.58)';
+            c.lineWidth = 11;
+            for (let r = 0; r < 7; r++) {
+                const ry = -165 + r * 46;
+                const rxSpan = 135 + Math.sin((r / 6) * Math.PI) * 65;
+                c.beginPath();
+                c.moveTo(-22, ry);
+                c.quadraticCurveTo(-rxSpan, ry - 14, -rxSpan + 12, ry + 34);
+                c.stroke();
+                c.beginPath();
+                c.moveTo(22, ry);
+                c.quadraticCurveTo(rxSpan, ry - 14, rxSpan - 12, ry + 34);
+                c.stroke();
+            }
+
+            c.strokeStyle = 'rgba(250, 250, 250, 0.88)';
+            c.lineWidth = 13;
+            c.beginPath();
+            c.moveTo(-25, -185);
+            c.bezierCurveTo(-95, -205, -155, -175, -210, -195);
+            c.moveTo(25, -185);
+            c.bezierCurveTo(95, -205, 155, -175, 210, -195);
+            c.stroke();
+            c.restore();
+        }
+
+        // Xương: trục dạng viên thuốc + hai đầu khớp phình ra
+        function drawBone(c, x0, y0, x1, y1, w) {
+            const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+            c.save();
+            c.translate(x0, y0);
+            c.rotate(ang);
+            c.fillStyle = '#f4f4f5';
+            c.strokeStyle = '#a1a1aa';
+            c.lineWidth = 1.5;
+            c.beginPath();
+            c.roundRect(0, -w * 0.3, len, w * 0.6, w * 0.3);
+            c.fill();
+            c.stroke();
+            c.beginPath();
+            c.ellipse(0, 0, w * 0.42, w * 0.55, 0, 0, Math.PI * 2);
+            c.fill();
+            c.beginPath();
+            c.ellipse(len, 0, w * 0.42, w * 0.55, 0, 0, Math.PI * 2);
+            c.fill();
+            c.restore();
+        }
+
+        // Bàn tay PA: đầu ngón (trên) → đốt ngón → xương bàn → xương cổ tay → xương quay/trụ (dưới)
+        function drawHandRadiograph(c) {
+            c.save();
+            c.fillStyle = '#05070a';
+            c.fillRect(-320, -320, 640, 640);
+            c.lineCap = 'round';
+            c.lineJoin = 'round';
+
+            const FINGERS = [
+                { name: 'index',  mcp: [-62, 18], base: [-45, 172], a: -0.12, seg: [105, 63, 46], w: 36 },
+                { name: 'middle', mcp: [-2, 4],   base: [-8, 170],  a: 0,     seg: [117, 73, 49], w: 38 },
+                { name: 'ring',   mcp: [56, 14],  base: [28, 172],  a: 0.10,  seg: [108, 68, 48], w: 36 },
+                { name: 'little', mcp: [108, 40], base: [60, 182],  a: 0.22,  seg: [82, 48, 40],  w: 32 }
+            ];
+            const soft = 'rgba(113, 113, 122, 0.55)';
+
+            // Phần mềm: cẳng tay, lòng bàn tay
+            c.fillStyle = soft;
+            c.fillRect(-92, 235, 184, 90);
+            c.beginPath();
+            c.moveTo(-90, 24);
+            c.quadraticCurveTo(25, -14, 132, 44);
+            c.quadraticCurveTo(146, 140, 96, 245);
+            c.lineTo(-92, 245);
+            c.quadraticCurveTo(-130, 150, -90, 24);
+            c.closePath();
+            c.fill();
+
+            // Phần mềm các ngón
+            c.strokeStyle = soft;
+            FINGERS.forEach(f => {
+                const len = f.seg[0] + f.seg[1] + f.seg[2] + 16 + 14;
+                c.lineWidth = f.w;
+                c.beginPath();
+                c.moveTo(f.mcp[0], f.mcp[1]);
+                c.lineTo(f.mcp[0] + Math.sin(f.a) * len, f.mcp[1] - Math.cos(f.a) * len);
+                c.stroke();
+            });
+            c.lineWidth = 44;
+            c.beginPath();
+            c.moveTo(-35, 200);
+            c.lineTo(-113, 138);
+            c.lineTo(-160, 87);
+            c.lineTo(-195, 40);
+            c.stroke();
+
+            // Xương
+            FINGERS.forEach(f => {
+                drawBone(c, f.base[0], f.base[1], f.mcp[0], f.mcp[1], 18);            // xương bàn
+                const dir = [Math.sin(f.a), -Math.cos(f.a)];
+                let p = [f.mcp[0], f.mcp[1]];
+                const ws = [16, 14, 12];
+                for (let i = 0; i < 3; i++) {                                         // đốt gần, giữa, xa
+                    const e = [p[0] + dir[0] * f.seg[i], p[1] + dir[1] * f.seg[i]];
+                    drawBone(c, p[0], p[1], e[0], e[1], ws[i]);
+                    p = [e[0] + dir[0] * 8, e[1] + dir[1] * 8];
+                }
+            });
+            // Ngón cái: xương bàn, đốt gần, đốt xa
+            drawBone(c, -35, 200, -113, 138, 20);
+            drawBone(c, -121, 132, -160, 87, 17);
+            drawBone(c, -166, 80, -195, 42, 14);
+
+            // Xương cổ tay (hai hàng)
+            c.fillStyle = '#e4e4e7';
+            c.strokeStyle = '#a1a1aa';
+            c.lineWidth = 1.5;
+            [[-62, 176], [-30, 174], [3, 172], [38, 176], [-52, 208], [-14, 210], [28, 208], [62, 214]].forEach(([x, y]) => {
+                c.beginPath();
+                c.roundRect(x - 14, y - 13, 28, 26, 8);
+                c.fill();
+                c.stroke();
+            });
+            // Xương quay & xương trụ
+            drawBone(c, -48, 330, -52, 240, 40);
+            drawBone(c, 36, 330, 34, 248, 28);
+            c.restore();
+        }
+
+        function buildRadiographs() {
+            ['CHEST', 'HAND'].forEach(region => {
+                const pos = makeCanvas(640, 640);
+                const pc = pos.getContext('2d');
+                pc.save();
+                pc.translate(320, 320);
+                if (region === 'CHEST') drawChestRadiograph(pc); else drawHandRadiograph(pc);
+                // Dấu chữ L (chì, không cho tia đi qua) ở góc ảnh
+                pc.fillStyle = '#f8fafc';
+                pc.font = 'bold 36px Inter, sans-serif';
+                pc.textAlign = 'center';
+                pc.fillText('L', 270, -272);
+                pc.restore();
+
+                const data = pc.getImageData(0, 0, 640, 640);
+                const neg = makeCanvas(640, 640);
+                const nc = neg.getContext('2d');
+                const nd = nc.createImageData(640, 640);
+                for (let i = 0; i < data.data.length; i += 4) {
+                    nd.data[i] = 255 - data.data[i];
+                    nd.data[i + 1] = 255 - data.data[i + 1];
+                    nd.data[i + 2] = 255 - data.data[i + 2];
+                    nd.data[i + 3] = 255;
+                }
+                nc.putImageData(nd, 0, 0);
+
+                // Tín hiệu đầu thu của ma trận 10×10: ∝ lượng tia tới = nghịch đảo độ sáng ảnh cuối (xương tối, khí sáng)
+                const sig = [];
+                for (let r = 0; r < 10; r++) {
+                    const row = [];
+                    for (let c2 = 0; c2 < 10; c2++) {
+                        let sum = 0, n = 0;
+                        for (let yy = 0; yy < 64; yy += 4) {
+                            for (let xx = 0; xx < 64; xx += 4) {
+                                const idx = ((r * 64 + yy) * 640 + (c2 * 64 + xx)) * 4;
+                                sum += (0.2126 * data.data[idx] + 0.7152 * data.data[idx + 1] + 0.0722 * data.data[idx + 2]) / 255;
+                                n++;
+                            }
+                        }
+                        row.push(1 - sum / n);
+                    }
+                    sig.push(row);
+                }
+                RADIO[region] = { pos, neg, sig };
+            });
+        }
+
+        // ==================== ĐIỀU KHIỂN GIAO DIỆN ====================
+        function playSim() {
+            if (state.time >= state.totalDuration - 0.02) state.time = 0;
+            state.isPlaying = true;
+            updatePlayPauseUI();
+        }
+        function pauseSim() {
+            state.isPlaying = false;
+            updatePlayPauseUI();
+        }
+        function replaySim() {
+            state.time = 0;
+            state.isPlaying = true;
+            state.autoMode = true;
+            state.lockedScene = null;
+            state.userZoomOffset = 0;
+            state.sparks = [];
+            buildRays();
+            updatePlayPauseUI();
+            updateAutoUI();
+            syncSceneUI();
+            updateCamera(0, true);
+        }
+        function setSpeed(spd) {
+            state.speed = spd;
+            document.querySelectorAll('.spd-btn').forEach(btn => {
+                btn.className = "spd-btn px-2 py-0.5 rounded text-[11px] font-mono-tech text-slate-400 hover:text-white";
+            });
+            const active = document.getElementById(`spd-${spd}`);
+            if (active) active.className = "spd-btn px-2 py-0.5 rounded text-[11px] font-mono-tech bg-sky-500/20 text-sky-300 font-bold";
+        }
+        function adjustZoom(delta) {
+            state.userZoomOffset = clamp(state.userZoomOffset + delta, -0.3, 0.65);
+        }
+
+        function setExamRegion(region) {
+            state.examRegion = region;
+            const btnChest = document.getElementById('btnChest');
+            const btnHand = document.getElementById('btnHand');
+            const badge = document.getElementById('badgeExam');
+            const spec = document.getElementById('generatorSpec');
+            const hudKv = document.getElementById('hudKv');
+            if (region === 'CHEST') {
+                btnChest.className = "btn-med px-3 py-1.5 rounded-lg text-xs font-bold border border-transparent active-exam flex items-center gap-1.5";
+                btnHand.className = "btn-med px-3 py-1.5 rounded-lg text-xs font-bold border border-transparent text-slate-400 hover:text-white flex items-center gap-1.5";
+                badge.innerText = "CHEST PA ĐỨNG (LỒNG NGỰC)";
+            } else {
+                btnHand.className = "btn-med px-3 py-1.5 rounded-lg text-xs font-bold border border-transparent active-exam flex items-center gap-1.5";
+                btnChest.className = "btn-med px-3 py-1.5 rounded-lg text-xs font-bold border border-transparent text-slate-400 hover:text-white flex items-center gap-1.5";
+                badge.innerText = "HAND PA (BÀN TAY)";
+            }
+            spec.innerText = `${KV[region]} kVp • ${MAS[region]} mAs`;
+            hudKv.innerText = `${KV[region]} kVp`;
+            initTubeParticles();
+            buildRays();
+            state.sparks = [];
+        }
+
+        function jumpToScene(sceneId) {
+            const target = SCENES.find(s => s.id === sceneId);
+            if (!target) return;
+            state.time = target.start + 0.05;
+            state.isPlaying = true;
+            // Chế độ thủ công: lặp lại cảnh đã chọn để quan sát (và đổi CHEST/HAND)
+            state.autoMode = false;
+            state.lockedScene = sceneId;
+            updatePlayPauseUI();
+            updateAutoUI();
+            syncSceneUI();
+        }
+        function enableAutoMode() {
+            state.autoMode = true;
+            state.lockedScene = null;
+            state.isPlaying = true;
+            updateAutoUI();
+            updatePlayPauseUI();
+        }
+
+        // Tua timeline bằng con trỏ (chuột / cảm ứng / bút), kéo thả được
+        const timelineEl = document.getElementById('timeline');
+        let scrubbing = false;
+        function scrubAt(clientX) {
+            const rect = timelineEl.getBoundingClientRect();
+            const ratio = clamp((clientX - rect.left) / rect.width);
+            state.time = Math.min(ratio * state.totalDuration, state.totalDuration - 0.01);
+            if (!state.autoMode) state.lockedScene = getSceneAtTime(state.time);
+            syncSceneUI();
+            updateCamera(0, true);
+        }
+        timelineEl.addEventListener('pointerdown', e => {
+            scrubbing = true;
+            try { timelineEl.setPointerCapture(e.pointerId); } catch (err) {}
+            scrubAt(e.clientX);
+        });
+        timelineEl.addEventListener('pointermove', e => { if (scrubbing) scrubAt(e.clientX); });
+        const endScrub = () => { scrubbing = false; };
+        timelineEl.addEventListener('pointerup', endScrub);
+        timelineEl.addEventListener('pointercancel', endScrub);
+
+        function updatePlayPauseUI() {
+            const btnPlay = document.getElementById('btnPlay');
+            const btnPause = document.getElementById('btnPause');
+            if (state.isPlaying) {
+                btnPlay.className = "btn-med px-3.5 py-1.5 rounded-lg bg-sky-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(56,189,248,0.4)]";
+                btnPause.className = "btn-med px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center gap-1.5";
+            } else {
+                btnPlay.className = "btn-med px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center gap-1.5";
+                btnPause.className = "btn-med px-3.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(245,158,11,0.4)]";
+            }
+        }
+        function updateAutoUI() {
+            document.getElementById('btnAuto').className = state.autoMode
+                ? "btn-med px-3 py-1.5 rounded-lg text-xs font-semibold active-btn border flex items-center gap-1.5"
+                : "btn-med px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 flex items-center gap-1.5";
+        }
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function syncSceneUI() {
+            const current = SCENES.find(s => state.time >= s.start && state.time < s.end) || SCENES[SCENES.length - 1];
+            state.currentScene = current.id;
+            document.getElementById('hudSceneTag').innerText = current.tag;
+            document.getElementById('hudSceneTitle').innerText = current.title;
+
+            // Tia X chỉ phát ở cảnh 3–4. Cảnh 5 là giai đoạn ĐỌC dữ liệu, tia đã tắt.
+            const beamOn = current.id === 3 || current.id === 4;
+            const beamPing = document.getElementById('beamPing');
+            const beamDot = document.getElementById('beamDot');
+            const beamState = document.getElementById('hudBeamState');
+            if (beamOn) {
+                beamPing.classList.remove('hidden');
+                beamDot.className = "relative inline-flex rounded-full h-3 w-3 bg-amber-400";
+                beamState.innerText = "X-RAY ON (PHÁT TIA)";
+                beamState.className = "text-amber-400 font-bold";
+            } else {
+                beamPing.classList.add('hidden');
+                beamDot.className = "relative inline-flex rounded-full h-3 w-3 " + (current.id === 5 ? "bg-emerald-400" : "bg-sky-400");
+                const label = { 1: 'STANDBY', 2: 'STANDBY', 5: 'X-RAY OFF • ĐỌC DỮ LIỆU', 6: 'ẢNH HOÀN CHỈNH', 7: 'EXPOSURE COMPLETE' }[current.id];
+                beamState.innerText = label;
+                beamState.className = (current.id === 5 ? "text-emerald-400" : "text-sky-300") + " font-bold";
+            }
+
+            document.querySelectorAll('.scene-pill').forEach(pill => {
+                pill.className = "scene-pill px-2.5 py-1 rounded text-[11px] font-mono-tech bg-slate-900 text-slate-400 hover:text-white border border-slate-800";
+            });
+            const activePill = document.getElementById(`pill-${current.id}`);
+            if (activePill) activePill.className = "scene-pill px-2.5 py-1 rounded text-[11px] font-mono-tech bg-sky-500/20 text-sky-300 border border-sky-500/40 font-bold";
+        }
+
+        // ==================== CAMERA ẢO (một bộ zoom thống nhất cho mọi cảnh) ====================
+        function updateCamera(dt, instant) {
+            const scene = getSceneAtTime(state.time);
+            const sc = SCENES[scene - 1];
+            const p = clamp((state.time - sc.start) / (sc.end - sc.start));
+            let z = 1;
+            switch (scene) {
+                case 1: z = 0.92 + p * 0.14; break;
+                case 2: z = 0.94 + p * 0.12; break;
+                case 6: z = 0.95 + p * 0.12; break;
+                case 7: z = 1.12 - p * 0.12; break;
+                default: z = 1;
+            }
+            camera.tx = 960;
+            camera.ty = 540;
+            camera.tz = clamp(z + state.userZoomOffset, 0.6, 1.9);
+            if (instant) {
+                camera.x = camera.tx; camera.y = camera.ty; camera.zoom = camera.tz;
+            } else {
+                const k = 1 - Math.exp(-8 * dt);
+                camera.x += (camera.tx - camera.x) * k;
+                camera.y += (camera.ty - camera.y) * k;
+                camera.zoom += (camera.tz - camera.zoom) * k;
+            }
+        }
+
+        // ==================== HÀM VẼ DÙNG CHUNG ====================
+        function drawRoomBackdrop() {
+            const bg = ctx.createRadialGradient(WIDTH * 0.45, HEIGHT * 0.35, 80, WIDTH * 0.5, HEIGHT * 0.5, WIDTH * 0.85);
+            bg.addColorStop(0, '#132847');
+            bg.addColorStop(0.55, '#0a162b');
+            bg.addColorStop(1, '#040914');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            ctx.strokeStyle = 'rgba(125, 211, 252, 0.06)';
+            ctx.lineWidth = 1.5;
+            for (let x = 120; x < WIDTH; x += 240) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, HEIGHT);
+                ctx.stroke();
+            }
+            ctx.beginPath();
+            ctx.moveTo(0, 820);
+            ctx.lineTo(WIDTH, 820);
+            ctx.stroke();
+        }
+
+        function drawCallout(lx, ly, tx, ty, title, desc, color = '#38bdf8') {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            const elbowX = tx + (lx > tx ? 40 : -40);
+            ctx.lineTo(elbowX, ly);
+            ctx.lineTo(lx, ly);
+            ctx.stroke();
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(tx, ty, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+            const alignLeft = lx > tx;
+            ctx.textAlign = alignLeft ? 'left' : 'right';
+            const textX = alignLeft ? lx + 10 : lx - 10;
+            ctx.font = 'bold 17px "Inter", sans-serif';
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillText(title, textX, ly - 4);
+            ctx.font = '500 13.5px "JetBrains Mono", monospace';
+            ctx.fillStyle = color;
+            ctx.fillText(desc, textX, ly + 16);
+            ctx.restore();
+        }
+
+        function drawXrayWavePhoton(x, y, angle, color = '#38bdf8', alpha = 1.0) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            for (let wx = -14; wx <= 14; wx += 2) {
+                const wy = Math.sin((wx + state.time * 40) * 0.45) * 4;
+                if (wx === -14) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
+            }
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(15, 0, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function hudPanel(x, y, w, h, title, color) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(10, 18, 36, 0.92)';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 14);
+            ctx.fill();
+            ctx.stroke();
+            if (title) {
+                ctx.fillStyle = color;
+                ctx.font = 'bold 15px "JetBrains Mono", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(title, x + 16, y + 30);
+            }
+            ctx.restore();
+        }
+
+        function wrapLines(text, maxW) {
+            const words = text.split(' ');
+            const lines = [];
+            let line = '';
+            words.forEach(w => {
+                const test = line ? line + ' ' + w : w;
+                if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+                else line = test;
+            });
+            if (line) lines.push(line);
+            return lines;
+        }
+
+        // ==================== CẢNH 1 & 7: PHÒNG CHỤP ====================
+        function drawTubeHeadExterior(x, y) {
+            const grad = ctx.createLinearGradient(x, y - 55, x, y + 55);
+            grad.addColorStop(0, '#475569');
+            grad.addColorStop(0.4, '#cbd5e1');
+            grad.addColorStop(1, '#1e293b');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(x - 115, y - 52, 230, 104, 24);
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(x - 45, y + 52, 90, 48);
+            ctx.strokeStyle = '#64748b';
+            ctx.strokeRect(x - 45, y + 52, 90, 48);
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(x - 45, y + 76, 8, 0, Math.PI * 2);
+            ctx.arc(x + 45, y + 76, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function renderRoomScene(ending) {
+            const chest = state.examRegion === 'CHEST';
+            const showLight = !ending;
+
+            const floorGrad = ctx.createLinearGradient(0, 820, 0, HEIGHT);
+            floorGrad.addColorStop(0, '#0f172a');
+            floorGrad.addColorStop(1, '#020617');
+            ctx.fillStyle = floorGrad;
+            ctx.fillRect(0, 820, WIDTH, HEIGHT - 820);
+
+            // Ray treo trần
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(200, 45, 1100, 22);
+
+            // Máy phát cao áp
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.roundRect(60, 490, 170, 330, 12);
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(80, 520, 130, 36);
+            ctx.font = 'bold 13px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#020617';
+            ctx.textAlign = 'center';
+            ctx.fillText("HV GEN 80 kW", 145, 543);
+
+            // Buồng điều khiển sau kính chì
+            const boothX = 1270;
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+            ctx.fillRect(boothX - 25, 290, 16, 530);
+            ctx.strokeStyle = 'rgba(125, 211, 252, 0.45)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(boothX - 25, 290, 16, 530);
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(boothX + 15, 650, 440, 22);
+            ctx.fillRect(boothX + 45, 672, 24, 148);
+            ctx.fillRect(boothX + 405, 672, 24, 148);
+
+            if (chest) drawChestRoom(showLight);
+            else drawHandRoom(showLight);
+
+            // Màn hình điều khiển
+            const monX = boothX + 75, monY = 425, monW = 310, monH = 200;
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(monX + 135, monY + monH, 40, 25);
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(monX, monY, monW, monH, 12);
+            ctx.fill();
+            ctx.strokeStyle = ending ? '#38bdf8' : '#475569';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(monX + 12, monY + 12, monW - 24, monH - 24);
+            if (ending) {
+                ctx.drawImage(RADIO[state.examRegion].pos, monX + monW / 2 - 88, monY + 12, 176, 176);
+            } else {
+                ctx.font = 'bold 14px "JetBrains Mono", monospace';
+                ctx.fillStyle = '#38bdf8';
+                ctx.textAlign = 'center';
+                ctx.fillText("SẴN SÀNG PHÁT TIA", monX + monW / 2, monY + monH / 2 - 8);
+                ctx.font = '12px "JetBrains Mono", monospace';
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText(`CHẾ ĐỘ: ${state.examRegion}`, monX + monW / 2, monY + monH / 2 + 14);
+            }
+            drawCallout(1380, 350, monX + monW / 2, monY, "MÀN HÌNH ĐIỀU KHIỂN", "Hiển thị ảnh X-quang chẩn đoán", '#38bdf8');
+            drawCallout(boothX - 17 + 60, 250, boothX - 17, 290, "KÍNH CHÌ", "Kỹ thuật viên đứng sau kính khi phát tia", '#7dd3fc');
+        }
+
+        function drawChestRoom(showLight) {
+            const tubeCX = 420, tubeCY = 545, detX = 1004;
+
+            // Cáp cao áp từ máy phát tới bóng
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(145, 490);
+            ctx.bezierCurveTo(145, 300, tubeCX - 260, tubeCY - 200, tubeCX - 40, tubeCY - 112);
+            ctx.stroke();
+
+            // Cột treo trần
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(tubeCX - 24, 67, 48, tubeCY - 115 - 67);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(tubeCX - 16, 120, 32, tubeCY - 115 - 120);
+
+            // Trường sáng của đèn chuẩn trực (ánh sáng thường, KHÔNG phải tia X)
+            if (showLight) {
+                ctx.fillStyle = 'rgba(253, 230, 138, 0.12)';
+                ctx.beginPath();
+                ctx.moveTo(tubeCX + 100, tubeCY - 24);
+                ctx.lineTo(detX, tubeCY - 160);
+                ctx.lineTo(detX, tubeCY + 160);
+                ctx.lineTo(tubeCX + 100, tubeCY + 24);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(253, 224, 71, 0.5)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([8, 6]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Bóng phát quay ngang (chùm tia nằm ngang, hướng sang phải)
+            ctx.save();
+            ctx.translate(tubeCX, tubeCY);
+            ctx.rotate(-Math.PI / 2);
+            drawTubeHeadExterior(0, 0);
+            ctx.restore();
+
+            // Giá đứng gắn tấm thu phẳng (wall stand)
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(1038, 330, 24, 490);
+            ctx.fillRect(1000, 812, 100, 10);
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(detX, 390, 34, 310);
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(detX, 390, 34, 310);
+
+            // Bệnh nhân đứng, quay NGỰC vào tấm thu (tư thế PA), tia đi từ lưng ra ngực
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.roundRect(918, 640, 56, 175, 18);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.roundRect(912, 802, 92, 18, 8);
+            ctx.fill();
+            const gown = ctx.createLinearGradient(893, 0, 997, 0);
+            gown.addColorStop(0, '#0369a1');
+            gown.addColorStop(1, '#38bdf8');
+            ctx.fillStyle = gown;
+            ctx.beginPath();
+            ctx.roundRect(893, 452, 104, 205, 34);
+            ctx.fill();
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(939, 432, 24, 26);
+            ctx.beginPath();
+            ctx.arc(951, 405, 36, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(985, 402);
+            ctx.lineTo(997, 412);
+            ctx.lineTo(985, 418);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 20;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(945, 488);
+            ctx.lineTo(992, 560);
+            ctx.lineTo(960, 612);
+            ctx.stroke();
+            ctx.lineCap = 'butt';
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.strokeRect(893, 462, 106, 170);
+            ctx.setLineDash([]);
+            if (showLight) {
+                ctx.fillStyle = 'rgba(253, 224, 71, 0.85)';
+                ctx.fillRect(890, tubeCY - 150, 5, 300);
+            }
+
+            drawCallout(540, 290, tubeCX + 12, tubeCY - 112, "BÓNG PHÁT TIA X", "Ống chân không cao áp & bộ chuẩn trực", '#38bdf8');
+            drawCallout(330, 880, 145, 780, "MÁY PHÁT CAO ÁP", "Cung cấp hiệu điện thế 40–150 kV", '#7dd3fc');
+            drawCallout(1130, 880, detX + 17, 700, "TẤM THU FPD TRÊN GIÁ ĐỨNG", "Chùm tia nằm ngang, ngực áp sát tấm thu", '#34d399');
+            if (showLight) drawCallout(880, 380, 760, tubeCY - 89, "ĐÈN CHUẨN TRỰC", "Ánh sáng thường chỉ vùng sẽ được chiếu tia", '#fde047');
+        }
+
+        function drawHandRoom(showLight) {
+            const tubeX = 760, tubeY = 270;
+            const tableX = 520, tableY = 640, tableW = 630, tableH = 38;
+
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(145, 490);
+            ctx.bezierCurveTo(145, 230, tubeX - 330, tubeY - 120, tubeX - 115, tubeY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(tubeX - 24, 67, 48, tubeY - 125);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(tubeX - 16, 130, 32, tubeY - 190);
+            drawTubeHeadExterior(tubeX, tubeY);
+
+            // Trường sáng đèn chuẩn trực rọi xuống bàn tay
+            if (showLight) {
+                ctx.fillStyle = 'rgba(253, 230, 138, 0.13)';
+                ctx.beginPath();
+                ctx.moveTo(tubeX - 26, tubeY + 100);
+                ctx.lineTo(tubeX - 82, tableY);
+                ctx.lineTo(tubeX + 82, tableY);
+                ctx.lineTo(tubeX + 26, tubeY + 100);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(253, 224, 71, 0.5)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([8, 6]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Bàn chụp: hai chân ở hai đầu, tấm thu nằm dưới mặt bàn
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(tableX + 10, tableY + tableH, 30, 142);
+            ctx.fillRect(tableX + tableW - 40, tableY + tableH, 30, 142);
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            ctx.roundRect(tableX, tableY, tableW, tableH, 10);
+            ctx.fill();
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(tubeX - 115, tableY + tableH + 6, 230, 16);
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.strokeRect(tubeX - 115, tableY + tableH + 6, 230, 16);
+
+            // Bệnh nhân NGỒI cạnh bàn, đặt bàn tay (lòng bàn tay úp) lên mặt bàn phía trên tấm thu
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(410, 722, 150, 14);
+            ctx.fillRect(420, 736, 10, 84);
+            ctx.fillRect(540, 736, 10, 84);
+            ctx.fillRect(410, 560, 12, 176);
+            ctx.fillStyle = '#64748b';
+            ctx.beginPath();
+            ctx.roundRect(440, 700, 150, 28, 14);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.roundRect(570, 720, 26, 100, 12);
+            ctx.fill();
+            const gown = ctx.createLinearGradient(430, 0, 530, 0);
+            gown.addColorStop(0, '#0369a1');
+            gown.addColorStop(1, '#38bdf8');
+            ctx.fillStyle = gown;
+            ctx.beginPath();
+            ctx.roundRect(430, 520, 100, 200, 30);
+            ctx.fill();
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(468, 492, 24, 30);
+            ctx.beginPath();
+            ctx.arc(480, 470, 34, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 24;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(505, 560);
+            ctx.lineTo(545, 630);
+            ctx.stroke();
+            ctx.lineWidth = 20;
+            ctx.beginPath();
+            ctx.moveTo(545, 630);
+            ctx.lineTo(715, 626);
+            ctx.stroke();
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.ellipse(752, 624, 36, 14, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = '#94a3b8';
+            [-9, -3, 3, 9].forEach(o => {
+                ctx.beginPath();
+                ctx.moveTo(780, 624 + o);
+                ctx.lineTo(826, 622 + o * 1.3);
+                ctx.stroke();
+            });
+            ctx.lineCap = 'butt';
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.strokeRect(712, 598, 126, 46);
+            ctx.setLineDash([]);
+
+            drawCallout(370, 270, tubeX - 115, tubeY, "BÓNG PHÁT TIA X", "Ống chân không cao áp & bộ chuẩn trực", '#38bdf8');
+            drawCallout(370, 440, 145, 490, "MÁY PHÁT CAO ÁP", "Cung cấp hiệu điện thế 40–150 kV", '#7dd3fc');
+            drawCallout(1180, 880, tubeX + 115, tableY + tableH + 14, "TẤM THU ẢNH KỸ THUẬT SỐ (FPD)", "Nằm dưới mặt bàn, ngay dưới bàn tay", '#34d399');
+            if (showLight) drawCallout(1000, 450, tubeX + 40, 520, "ĐÈN CHUẨN TRỰC", "Ánh sáng thường chỉ vùng sẽ được chiếu tia", '#fde047');
+        }
+
+        // ==================== CẢNH 2 & 3: ỐNG PHÁT TIA X ====================
+        function renderXrayTubeScene(p, isGenerating, dt) {
+            const { cx, cy, fx, fy } = TB;
+            const chest = state.examRegion === 'CHEST';
+            const kvp = KV[state.examRegion];
+            const slitHalf = chest ? 52 : 26;
+            const halfAngle = Math.atan(slitHalf / 274);   // góc mở của chùm do bộ chuẩn trực quyết định
+            const pulse = 0.85 + Math.sin(state.time * 14) * 0.15;
+
+            // Vỏ chì + dầu cách điện
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.roundRect(cx - 430, cy - 210, 860, 400, 45);
+            ctx.fill();
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 6;
+            ctx.stroke();
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 14;
+            ctx.beginPath();
+            ctx.moveTo(fx - 62, cy + 178);
+            ctx.lineTo(cx - 415, cy + 178);
+            ctx.lineTo(cx - 415, cy - 195);
+            ctx.lineTo(cx + 415, cy - 195);
+            ctx.lineTo(cx + 415, cy + 178);
+            ctx.lineTo(fx + 62, cy + 178);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(14, 165, 233, 0.08)';
+            ctx.fillRect(cx - 405, cy - 185, 810, 355);
+
+            // Vỏ thủy tinh chân không
+            const glassGrad = ctx.createLinearGradient(0, cy - 130, 0, cy + 110);
+            glassGrad.addColorStop(0, 'rgba(186, 230, 253, 0.22)');
+            glassGrad.addColorStop(0.5, 'rgba(15, 23, 42, 0.85)');
+            glassGrad.addColorStop(1, 'rgba(186, 230, 253, 0.22)');
+            ctx.fillStyle = glassGrad;
+            ctx.beginPath();
+            ctx.roundRect(cx - 340, cy - 130, 680, 240, 85);
+            ctx.fill();
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Catốt: cốc hội tụ + dây tóc (dòng đốt quyết định số electron = mA)
+            const cathX = cx - 215;
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(cx - 345, fy - 8, cathX - 18 - (cx - 345), 16);
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.roundRect(cathX - 18, fy - 34, 40, 68, 10);
+            ctx.fill();
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(cathX + 4, fy - 22, 18, 44, 6);
+            ctx.fill();
+            ctx.strokeStyle = isGenerating ? '#fbbf24' : '#f59e0b';
+            ctx.lineWidth = 4.5;
+            if (isGenerating) { ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 22; }
+            ctx.beginPath();
+            for (let ty = -18; ty <= 18; ty += 4) {
+                const tx = cathX + 13 + Math.sin(ty * 0.7) * 4;
+                if (ty === -18) ctx.moveTo(tx, fy + ty); else ctx.lineTo(tx, fy + ty);
+            }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Anốt quay: đĩa có mặt vát ~11° (mặt vát nghiêng ra xa chùm tia nên chùm đi xuống mà không xuyên qua anốt)
+            ctx.fillStyle = '#475569';
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(fx, fy - 14);
+            ctx.lineTo(fx + 64, fy - 14);
+            ctx.lineTo(fx + 64, fy + 150);
+            ctx.lineTo(fx + 32, fy + 150);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#e2e8f0';   // vòng tiêu điểm vonfram–rheni
+            ctx.beginPath();
+            ctx.moveTo(fx, fy - 14);
+            ctx.lineTo(fx + 64, fy - 14);
+            ctx.lineTo(fx + 64, fy + 16);
+            ctx.lineTo(fx + 5.85, fy + 16);
+            ctx.closePath();
+            ctx.fill();
+            // Vạch chuyển động thể hiện đĩa đang quay
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)';
+            ctx.lineWidth = 2;
+            for (let k = 0; k < 8; k++) {
+                const yy = fy - 8 + ((k * 22 + state.time * 140) % 170);
+                ctx.beginPath();
+                ctx.moveTo(fx + 44, yy);
+                ctx.lineTo(fx + 62, yy);
+                ctx.stroke();
+            }
+            if (isGenerating) {
+                const heat = ctx.createRadialGradient(fx + 4, fy, 2, fx + 4, fy, 46);
+                heat.addColorStop(0, `rgba(251, 146, 60, ${0.75 * pulse})`);
+                heat.addColorStop(1, 'rgba(251, 146, 60, 0)');
+                ctx.fillStyle = heat;
+                ctx.beginPath();
+                ctx.arc(fx + 4, fy, 46, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Trục, rôto (đồng) và stator ngoài vỏ thủy tinh
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(fx + 64, fy + 40, 80, 26);
+            ctx.fillRect(fx + 294, fy + 40, cx + 340 - (fx + 294), 26);
+            ctx.fillStyle = '#b45309';
+            ctx.fillRect(fx + 144, fy + 10, 150, 86);
+            ctx.strokeStyle = 'rgba(254, 243, 199, 0.35)';
+            ctx.lineWidth = 2;
+            for (let k = 0; k < 6; k++) {
+                const yy = fy + 14 + ((k * 14 + state.time * 80) % 84);
+                ctx.beginPath();
+                ctx.moveTo(fx + 144, yy);
+                ctx.lineTo(fx + 294, yy);
+                ctx.stroke();
+            }
+            ctx.fillStyle = '#92400e';
+            ctx.fillRect(cx + 345, fy, 48, 106);
+            ctx.strokeStyle = 'rgba(253, 230, 138, 0.5)';
+            for (let yy = fy + 8; yy < fy + 104; yy += 10) {
+                ctx.beginPath();
+                ctx.moveTo(cx + 345, yy);
+                ctx.lineTo(cx + 393, yy);
+                ctx.stroke();
+            }
+
+            // Điện áp cao: catốt âm, anốt dương
+            ctx.font = 'bold 14px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillText(`−${kvp / 2} kV`, cathX + 2, fy - 44);
+            ctx.fillStyle = '#7dd3fc';
+            ctx.fillText(`+${kvp / 2} kV`, fx + 40, fy - 24);
+
+            // Cửa sổ + lọc nhôm + bộ chuẩn trực (lá chì)
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(fx - 62, cy + 172, 124, 12);
+            ctx.fillStyle = '#a5b4fc';
+            ctx.fillRect(fx - 62, cy + 186, 124, 5);
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.fillRect(fx - 150, cy + 195, 150 - slitHalf, 48);
+            ctx.strokeRect(fx - 150, cy + 195, 150 - slitHalf, 48);
+            ctx.fillRect(fx + slitHalf, cy + 195, 150 - slitHalf, 48);
+            ctx.strokeRect(fx + slitHalf, cy + 195, 150 - slitHalf, 48);
+
+            if (isGenerating) {
+                // Electron: gia tốc dần từ catốt tới bia
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.16)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([6, 6]);
+                for (let ey = -20; ey <= 20; ey += 10) {
+                    ctx.beginPath();
+                    ctx.moveTo(cathX + 22, fy + ey);
+                    ctx.lineTo(fx + 1, fy + ey * 0.3);
+                    ctx.stroke();
+                }
+                ctx.setLineDash([]);
+
+                // Chùm tia X: hai biên đi thẳng từ tiêu điểm qua khe chuẩn trực xuống đáy
+                const bottomY = 1050;
+                const bottomHalf = Math.tan(halfAngle) * (bottomY - fy);
+                const cone = ctx.createLinearGradient(0, fy, 0, bottomY);
+                cone.addColorStop(0, 'rgba(56, 189, 248, 0.42)');
+                cone.addColorStop(0.45, 'rgba(56, 189, 248, 0.18)');
+                cone.addColorStop(1, 'rgba(56, 189, 248, 0.04)');
+                ctx.fillStyle = cone;
+                ctx.beginPath();
+                ctx.moveTo(fx, fy);
+                ctx.lineTo(fx - bottomHalf, bottomY);
+                ctx.lineTo(fx + bottomHalf, bottomY);
+                ctx.closePath();
+                ctx.fill();
+
+                state.xrayPhotons.forEach(ph => {
+                    ph.progress += ph.speed * dt;
+                    const col = ph.type === 'char' ? '#a855f7' : '#38bdf8';
+                    if (ph.kind === 'useful') {
+                        if (ph.progress > 1) ph.progress -= 1;
+                        const a = Math.PI / 2 - ph.da * halfAngle;
+                        const dist = ph.progress * 540;
+                        drawXrayWavePhoton(fx + Math.cos(a) * dist, fy + Math.sin(a) * dist, a, col, 0.95);
+                    } else {
+                        if (ph.progress > 1) {
+                            ph.progress -= 1;
+                            addSpark(fx + Math.cos(ph.ang) * ph.maxDist, fy + Math.sin(ph.ang) * ph.maxDist, '#94a3b8', 10);
+                        }
+                        const dist = ph.progress * ph.maxDist;
+                        drawXrayWavePhoton(fx + Math.cos(ph.ang) * dist, fy + Math.sin(ph.ang) * dist, ph.ang, col, 0.55);
+                    }
+                });
+
+                state.electrons.forEach(e => {
+                    e.progress += e.speed * dt;
+                    if (e.progress > 1) e.progress -= 1;
+                    const s = Math.pow(e.progress, 1.7);
+                    const ex = (cathX + 24) + s * ((fx + 1) - (cathX + 24));
+                    const ey = fy + e.yOffset * (1 - 0.7 * s);
+                    ctx.fillStyle = '#fde047';
+                    ctx.shadowColor = '#f59e0b';
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, 3.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                });
+                updateSparks(dt);
+                drawSparks();
+            }
+
+            drawCallout(400, 330, cx - 430, cy - 120, "VỎ BỌC CHÌ + DẦU CÁCH ĐIỆN", "Chặn bức xạ rò rỉ, làm mát & cách điện", '#94a3b8');
+            drawCallout(400, 440, cx - 340, cy - 40, "VỎ THỦY TINH CHÂN KHÔNG", "Để electron bay không bị cản bởi không khí", '#7dd3fc');
+            drawCallout(400, 560, cathX - 10, fy + 34, "CATỐT: DÂY TÓC NUNG", "Dòng đốt (mA) quyết định số electron phát ra", '#fbbf24');
+            drawCallout(400, 700, fx - 62, cy + 188, "CỬA SỔ + LỌC NHÔM 2,5 mm", "Loại bớt tia X năng lượng thấp (tia mềm)", '#a5b4fc');
+            drawCallout(1450, 430, fx + 36, fy - 6, "BIA VONFRAM (W) TRÊN ANỐT", "Z = 74, chịu nhiệt cao; mặt vát ~11°", '#e2e8f0');
+            drawCallout(1450, 560, cx + 393, fy + 52, "ROTOR + STATOR", "Từ trường stator làm anốt quay để tản nhiệt", '#fbbf24');
+            drawCallout(1450, 640, fx + slitHalf + 70, cy + 219, "BỘ CHUẨN TRỰC (LÁ CHÌ)", "Giới hạn trường chiếu đúng vùng cần chụp", '#34d399');
+        }
+
+        // ==================== CẢNH 4: TIA X XUYÊN QUA CƠ THỂ (mặt cắt ngang) ====================
+        function drawChestSection() {
+            const cx = S4.bcx, cy = S4.bcy;
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.28)';
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, 340, 165, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // phổi
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            [-150, 150].forEach(ox => {
+                ctx.beginPath();
+                ctx.ellipse(cx + ox, cy - 10, 98, 104, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
+            // tim
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.5)';
+            ctx.strokeStyle = '#fb7185';
+            ctx.beginPath();
+            ctx.ellipse(cx + 60, cy + 55, 74, 64, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // xương
+            ctx.fillStyle = '#e2e8f0';
+            ctx.beginPath();
+            ctx.arc(cx, cy - 112, 30, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(cx - 9, cy - 164, 18, 36);
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + 152, 36, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+            CHEST_RIBS.forEach(r => {
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, 9, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.font = '600 13px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'center';
+            ctx.fillText('SAU (LƯNG): tia X đi vào', cx, cy - 178);
+            ctx.fillText('TRƯỚC (NGỰC): tia X đi ra → đầu thu', cx, cy + 192);
+            ctx.textAlign = 'right';
+            ctx.fillText('PHẢI BN', cx - 348, cy + 5);
+            ctx.textAlign = 'left';
+            ctx.fillText('TRÁI BN', cx + 348, cy + 5);
+        }
+
+        function drawHandSection() {
+            const cx = S4.bcx, cy = S4.bcy;
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.28)';
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, 200, 46, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            HAND_BONES.forEach(bx => {
+                ctx.fillStyle = '#e2e8f0';
+                ctx.beginPath();
+                ctx.arc(cx + bx, cy, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#94a3b8';
+                ctx.beginPath();
+                ctx.arc(cx + bx, cy, 7, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.font = '600 13px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'center';
+            ctx.fillText('MU BÀN TAY: tia X đi vào', cx, cy - 66);
+            ctx.fillText('LÒNG BÀN TAY → đầu thu', cx, cy + 82);
+            ctx.fillText('(mặt cắt ngang qua 5 xương bàn tay)', cx, cy + 102);
+        }
+
+        function renderScene4(p, dt) {
+            const region = state.examRegion;
+            const cx = 960;
+
+            // Nguồn tia (cách đầu thu ~180 cm, vẽ không đúng tỉ lệ)
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            ctx.roundRect(cx - 80, 40, 160, 56, 16);
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(cx - 30, 96, 60, 14);
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.moveTo(cx - 30, 110); ctx.lineTo(cx - 320, S4.rayTop);
+            ctx.moveTo(cx + 30, 110); ctx.lineTo(cx + 320, S4.rayTop);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.font = '600 13px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'left';
+            ctx.fillText('~180 cm tới đầu thu (không đúng tỉ lệ)', cx + 100, 80);
+
+            if (region === 'CHEST') drawChestSection(); else drawHandSection();
+
+            // Đường tia: độ sáng giảm dần theo e^(−τ) khi đi qua mô
+            ctx.lineWidth = 1.5;
+            state.rays.forEach(ray => {
+                for (let i = 0; i < ray.taus.length - 2; i += 2) {
+                    const y0 = S4.rayTop + i * 4, y1 = S4.rayTop + (i + 2) * 4;
+                    const a = 0.07 + 0.38 * Math.exp(-ray.taus[i]);
+                    ctx.strokeStyle = `rgba(125, 211, 252, ${a})`;
+                    ctx.beginPath();
+                    ctx.moveTo(rayX(ray.normX, y0), y0);
+                    ctx.lineTo(rayX(ray.normX, y1), y1);
+                    ctx.stroke();
+                }
+            });
+
+            // Photon: mỗi photon bị hấp thụ/tán xạ tại độ sâu mà tích phân μ vượt ngưỡng ngẫu nhiên (Beer–Lambert)
+            const pPEbone = region === 'CHEST' ? 0.55 : 0.85;
+            const pPEsoft = region === 'CHEST' ? 0.1 : 0.3;
+            state.rays.forEach(ray => {
+                ray.photons.forEach(ph => {
+                    ph.ph += ph.speed * dt;
+                    if (ph.ph > 1) { ph.ph -= 1; newPhoton(ray, ph); }
+                    const y = S4.rayTop + ph.ph * (S4.detY - S4.rayTop);
+                    const x = rayX(ray.normX, y);
+                    if (ph.ya !== null && y >= ph.ya) {
+                        if (!ph.hit) {
+                            ph.hit = true;
+                            const bone = muAt(region, x, ph.ya) > (region === 'CHEST' ? 0.02 : 0.04);
+                            const photo = Math.random() < (bone ? pPEbone : pPEsoft);
+                            if (photo) addSpark(x, ph.ya, '#fbbf24', 14);     // hiệu ứng quang điện: hấp thụ hoàn toàn
+                            else {                                              // tán xạ Compton: photon đổi hướng
+                                addSpark(x, ph.ya, '#c4b5fd', 12);
+                                if (state.scattered.length < 70) {
+                                    const ang = Math.random() < 0.5 ? Math.PI / 2 + (Math.random() - 0.5) * 1.2 : Math.random() * Math.PI * 2;
+                                    state.scattered.push({ x, y: ph.ya, ang, life: 2.2 });
+                                }
+                            }
+                        }
+                    } else {
+                        drawXrayWavePhoton(x, y, Math.PI / 2 - Math.atan(ray.normX * 0.065), '#7dd3fc', 0.95);
+                    }
+                });
+            });
+
+            // Tia tán xạ: lưới chống tán xạ chặn tia đi chéo
+            for (let i = state.scattered.length - 1; i >= 0; i--) {
+                const s = state.scattered[i];
+                s.x += Math.cos(s.ang) * 240 * dt;
+                s.y += Math.sin(s.ang) * 240 * dt;
+                s.life -= dt;
+                let remove = s.life <= 0 || s.y < 150 || s.x < 300 || s.x > 1620;
+                if (!remove && s.y >= S4.gridY && !s.checked) {
+                    s.checked = true;
+                    const oblique = Math.abs(Math.cos(s.ang) / Math.max(0.05, Math.abs(Math.sin(s.ang)))) > 0.14 || Math.sin(s.ang) <= 0;
+                    if (oblique) { addSpark(s.x, S4.gridY + 6, '#94a3b8', 8); remove = true; }
+                }
+                if (!remove && s.y > S4.detY + 6) remove = true;
+                if (remove) { state.scattered.splice(i, 1); continue; }
+                drawXrayWavePhoton(s.x, s.y, s.ang, '#c4b5fd', 0.7);
+            }
+            updateSparks(dt);
+            drawSparks();
+
+            // Lưới chống tán xạ + đầu thu FPD
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            for (let gx = cx - 370; gx <= cx + 370; gx += 14) {
+                ctx.beginPath();
+                ctx.moveTo(gx, S4.gridY);
+                ctx.lineTo(gx, S4.gridY + 28);
+                ctx.stroke();
+            }
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(cx - 380, S4.detY, 760, 36, 8);
+            ctx.fill();
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Biểu đồ cường độ I/I₀ tại đầu thu (theo vị trí ngang)
+            const px0 = cx - 380, pw = 760, baseY = 935, ph = 110;
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(px0, baseY - ph - 6); ctx.lineTo(px0, baseY); ctx.lineTo(px0 + pw, baseY);
+            ctx.stroke();
+            ctx.beginPath();
+            state.rays.forEach((ray, i) => {
+                const x = rayX(ray.normX, S4.detY);
+                const y = baseY - Math.exp(-ray.total) * ph * 1.0;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.font = '600 13px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#34d399';
+            ctx.textAlign = 'left';
+            ctx.fillText('I/I₀ tại đầu thu (lượng tia tới mỗi vị trí)', px0 + 8, baseY - ph - 10);
+
+            // Chú thích bám đúng cấu trúc
+            if (region === 'CHEST') {
+                drawCallout(1440, 290, S4.bcx, S4.bcy - 112, "XƯƠNG (cột sống, sườn, ức)", "μ lớn → ít tia tới đầu thu", '#e2e8f0');
+                drawCallout(1440, 560, S4.bcx + 60, S4.bcy + 55, "TIM / MÔ MỀM", "μ trung bình → tín hiệu trung bình", '#fb7185');
+                drawCallout(480, 500, S4.bcx - 150, S4.bcy - 10, "PHỔI (chứa khí)", "μ rất nhỏ → nhiều tia tới đầu thu", '#38bdf8');
+            } else {
+                drawCallout(1440, 330, S4.bcx + 75, S4.bcy, "XƯƠNG BÀN TAY", "μ lớn → ít tia tới đầu thu", '#e2e8f0');
+                drawCallout(480, 540, S4.bcx - 40, S4.bcy + 28, "MÔ MỀM", "μ trung bình → tín hiệu trung bình", '#94a3b8');
+                drawCallout(1440, 440, S4.bcx + 260, S4.bcy, "KHÔNG KHÍ (ngoài bàn tay)", "Không suy giảm → tín hiệu cực đại", '#38bdf8');
+            }
+            drawCallout(1440, 702, cx + 330, S4.gridY + 14, "LƯỚI CHỐNG TÁN XẠ", "Lá chì chặn tia Compton đi chéo", '#c4b5fd');
+            drawCallout(1440, 760, cx + 360, S4.detY + 18, "ĐẦU THU FPD", "Ghi lượng tia còn lại sau suy giảm", '#34d399');
+        }
+
+        // ==================== CẢNH 5: ĐẦU THU FPD & TẠO ẢNH SỐ ====================
+        function drawFPDCrossSection(x, y, w, h, sigCols) {
+            const t = state.time;
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 18);
+            ctx.fill();
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.font = 'bold 15px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#34d399';
+            ctx.textAlign = 'left';
+            ctx.fillText("FPD GIÁN TIẾP — MẶT CẮT", x + 16, y + 30);
+
+            const ix = x + 20, iw = w - 40;
+            const yCover = y + 120, yCsI = yCover + 16, csiH = 170;
+            const yPD = yCsI + csiH, pdH = 80, ySub = yPD + pdH, yRead = ySub + 24;
+            const cw = iw / 6;
+
+            ctx.font = '600 13px "Inter", sans-serif';
+            ctx.fillStyle = '#7dd3fc';
+            ctx.fillText('Tia X đã xuyên qua bệnh nhân ↓', ix, y + 70);
+
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(ix, yCover, iw, 16);
+            const csiGrad = ctx.createLinearGradient(0, yCsI, 0, yPD);
+            csiGrad.addColorStop(0, 'rgba(190, 242, 100, 0.16)');
+            csiGrad.addColorStop(1, 'rgba(190, 242, 100, 0.06)');
+            ctx.fillStyle = csiGrad;
+            ctx.fillRect(ix, yCsI, iw, csiH);
+            ctx.strokeStyle = 'rgba(217, 249, 157, 0.35)';
+            ctx.lineWidth = 1.5;
+            for (let nx = ix + 4; nx < ix + iw; nx += 7) {
+                ctx.beginPath();
+                ctx.moveTo(nx, yCsI);
+                ctx.lineTo(nx, yPD);
+                ctx.stroke();
+            }
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(ix, yPD, iw, pdH);
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(ix, ySub, iw, 24);
+            ctx.fillStyle = '#312e81';
+            ctx.fillRect(ix, yRead, iw, 38);
+
+            ctx.font = '600 13px "Inter", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fillText('Vỏ carbon', ix + 8, yCover + 12);
+            ctx.fillStyle = '#d9f99d';
+            ctx.fillText('CsI(Tl): tia X → ánh sáng xanh lục', ix + 8, yCsI + 20);
+            ctx.fillStyle = '#bfdbfe';
+            ctx.fillText('a-Si:H photodiode: ánh sáng → điện tích', ix + 8, yPD - 6 + 0);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillText('Đế thủy tinh', ix + 8, ySub + 17);
+            ctx.fillStyle = '#c7d2fe';
+            ctx.fillText('TFT + mạch đọc', ix + 8, yRead + 24);
+
+            for (let k = 0; k < 6; k++) {
+                const cxk = ix + cw * (k + 0.5);
+                const sg = sigCols[k];
+                // giếng điện tích của điểm ảnh
+                const wx = ix + cw * k + 6, wy = yPD + 12, ww = cw - 12, wh = pdH - 20;
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(wx, wy, ww, wh);
+                const fillH = wh * clamp(sg) * 0.95;
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.65)';
+                ctx.fillRect(wx, wy + wh - fillH, ww, fillH);
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(wx, wy, ww, wh);
+
+                // Chuỗi sự kiện: tia X → ánh sáng → điện tích; số photon ∝ tín hiệu
+                const nPh = Math.max(1, Math.round(sg * 4));
+                for (let j = 0; j < nPh; j++) {
+                    const ph = (t * 0.55 + j / nPh + k * 0.13) % 1;
+                    const yc = yCsI + 40 + ((k * 37 + j * 53) % 100);
+                    if (ph < 0.45) {
+                        const yy = lerp(y + 80, yc, ph / 0.45);
+                        drawXrayWavePhoton(cxk + (j - nPh / 2) * 6, yy, Math.PI / 2, '#38bdf8', 1);
+                    } else if (ph < 0.9) {
+                        const q = (ph - 0.45) / 0.45;
+                        if (q < 0.2) {
+                            ctx.strokeStyle = `rgba(134, 239, 172, ${1 - q / 0.2})`;
+                            ctx.lineWidth = 2.5;
+                            ctx.beginPath();
+                            ctx.arc(cxk + (j - nPh / 2) * 6, yc, 4 + q * 60, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+                        for (let d = 0; d < 3; d++) {
+                            const dx = (d - 1) * 8 * q;
+                            ctx.fillStyle = '#86efac';
+                            ctx.beginPath();
+                            ctx.arc(cxk + (j - nPh / 2) * 6 + dx, lerp(yc, yPD + 12, q), 3, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    } else {
+                        ctx.fillStyle = '#22d3ee';
+                        ctx.beginPath();
+                        ctx.arc(cxk + (j - nPh / 2) * 5, wy + wh - 6 - (j % 3) * 7, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            ctx.font = '500 14px "Inter", sans-serif';
+            ctx.fillStyle = '#cbd5e1';
+            ctx.textAlign = 'left';
+            const steps = [
+                '① Tia X → ánh sáng xanh (scintillator CsI).',
+                '② Ánh sáng → điện tích trong photodiode a-Si.',
+                '③ TFT bật từng hàng để đọc điện tích.',
+                '④ ADC số hóa thành giá trị 14 bit.'
+            ];
+            steps.forEach((s, i) => ctx.fillText(s, ix, yRead + 70 + i * 26));
+        }
+
+        function renderScene5(p) {
+            const R = RADIO[state.examRegion];
+            const sig = R.sig;
+            const t = state.time;
+            const cy = 170;
+
+            const rp = clamp((p - 0.2) / 0.62);             // tiến độ đọc từng hàng
+            const rowsRead = rp * 10;
+            const curRow = Math.min(9, Math.floor(rowsRead));
+            const sigCols = [0, 2, 4, 5, 7, 9].map(c => sig[5][c]);
+
+            // Panel A: mặt cắt FPD
+            drawFPDCrossSection(50, cy, 420, 720, sigCols);
+
+            // Panel B: ma trận điểm ảnh 10×10
+            const bx = 510, bw = 400, by = cy;
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(bx, by, bw, 720, 18);
+            ctx.fill();
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.font = 'bold 15px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#34d399';
+            ctx.textAlign = 'left';
+            ctx.fillText("MA TRẬN ĐIỂM ẢNH 10×10", bx + 16, by + 30);
+
+            const cell = 36, gx = bx + 20, gy = by + 70;
+            for (let r = 0; r < 10; r++) {
+                for (let c = 0; c < 10; c++) {
+                    const s = sig[r][c];
+                    const done = r < curRow || rp >= 1;
+                    const alpha = done ? 0.12 : s * (0.85 + Math.sin(t * 6 + r + c) * 0.08);
+                    ctx.fillStyle = `rgba(52, 211, 153, ${clamp(alpha, 0.05, 1)})`;
+                    ctx.fillRect(gx + c * cell + 1, gy + r * cell + 1, cell - 2, cell - 2);
+                }
+            }
+            if (rp > 0 && rp < 1) {
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(gx - 2, gy + curRow * cell, cell * 10 + 4, cell);
+                ctx.fillStyle = '#fde047';
+                ctx.font = 'bold 13px "JetBrains Mono", monospace';
+                ctx.textAlign = 'right';
+                ctx.fillText(`hàng ${curRow + 1}/10 ▶`, gx - 6, gy + curRow * cell + 22);
+                ctx.textAlign = 'left';
+            }
+            ctx.font = '500 14px "Inter", sans-serif';
+            ctx.fillStyle = '#cbd5e1';
+            wrapLines('Tín hiệu mỗi điểm ảnh ∝ số photon tới: vùng khí sáng (nhiều tia), xương tối (ít tia). Hàng đã đọc được xóa điện tích.', bw - 40).forEach((ln, i) => ctx.fillText(ln, bx + 20, gy + 380 + i * 22));
+            ctx.font = 'bold 13px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#7dd3fc';
+            ctx.fillText("MỨC XÁM ĐẦU THU (trước khi đảo cực)", bx + 20, gy + 372 - 4 + 0);
+
+            // ADC
+            const ax = 925, ay = 400, aw = 160, ah = 130;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(bx + bw, ay + ah / 2);
+            ctx.lineTo(ax, ay + ah / 2);
+            ctx.moveTo(ax + aw, ay + ah / 2);
+            ctx.lineTo(1110, ay + ah / 2);
+            ctx.stroke();
+            ctx.fillStyle = '#1d4ed8';
+            ctx.beginPath();
+            ctx.roundRect(ax, ay, aw, ah, 12);
+            ctx.fill();
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('ADC 14 bit', ax + aw / 2, ay + 40);
+            const col = Math.floor(t * 14) % 10;
+            const val = Math.floor(clamp(sig[curRow][col]) * 16383);
+            ctx.font = 'bold 22px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#bfdbfe';
+            ctx.fillText(rp > 0 ? String(val).padStart(5, '0') : '-----', ax + aw / 2, ay + 82);
+            ctx.font = '12px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#93c5fd';
+            ctx.fillText('số hóa tín hiệu', ax + aw / 2, ay + 108);
+            for (let i = 0; i < 4; i++) {
+                const q = ((t * 0.9 + i / 4) % 1);
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(bx + bw + q * (ax - bx - bw), ay + ah / 2, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Panel C: ảnh được dựng dần theo từng hàng đọc, sau đó đảo cực
+            const cx0 = 1110, cw0 = 750;
+            ctx.fillStyle = '#020617';
+            ctx.beginPath();
+            ctx.roundRect(cx0, cy, cw0, 720, 18);
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.font = 'bold 15px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#38bdf8';
+            ctx.textAlign = 'left';
+            ctx.fillText("TÁI TẠO ẢNH (XỬ LÝ SỐ)", cx0 + 16, cy + 30);
+
+            const imgS = 600, imgX = cx0 + (cw0 - imgS) / 2, imgY = cy + 60;
+            const inv = ease(clamp((p - 0.84) / 0.12));
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(imgX, imgY, imgS, imgS * rp);
+            ctx.clip();
+            ctx.globalAlpha = 1 - inv;
+            ctx.drawImage(R.neg, imgX, imgY, imgS, imgS);
+            ctx.globalAlpha = inv;
+            ctx.drawImage(R.pos, imgX, imgY, imgS, imgS);
+            ctx.restore();
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(imgX, imgY, imgS, imgS);
+            if (rp > 0 && rp < 1) {
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(imgX, imgY + imgS * rp);
+                ctx.lineTo(imgX + imgS, imgY + imgS * rp);
+                ctx.stroke();
+            }
+            ctx.font = 'bold 14px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = inv > 0.5 ? '#f8fafc' : '#fbbf24';
+            ctx.fillText(inv > 0.5 ? 'ĐÃ ĐẢO CỰC + CHỈNH ĐỘ TƯƠNG PHẢN: xương trắng, khí đen' : 'ẢNH THÔ: tín hiệu ∝ liều (khí sáng, xương tối)', cx0 + cw0 / 2, imgY + imgS + 32);
+        }
+
+        // ==================== CẢNH 6: ẢNH X-QUANG PHÓNG TO ====================
+        function renderScene6(p) {
+            const cx = WIDTH / 2, cy = HEIGHT / 2 - 10;
+            const frameW = 920, frameH = 760;
+            const R = RADIO[state.examRegion];
+            const chest = state.examRegion === 'CHEST';
+
+            ctx.fillStyle = '#020617';
+            ctx.beginPath();
+            ctx.roundRect(cx - frameW / 2, cy - frameH / 2, frameW, frameH, 16);
+            ctx.fill();
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            const imgS = 680, imgX = cx - imgS / 2, imgY = cy - imgS / 2 + 10;
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(cx - frameW / 2 + 16, cy - frameH / 2 + 16, frameW - 32, frameH - 32, 10);
+            ctx.clip();
+            ctx.drawImage(R.pos, imgX, imgY, imgS, imgS);
+            // quét hiện ảnh từ trên xuống
+            const sweepY = imgY + Math.min(1, p * 1.4) * imgS;
+            if (p < 0.72) {
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.82)';
+                ctx.fillRect(imgX, sweepY, imgS, imgY + imgS - sweepY);
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(imgX, sweepY);
+                ctx.lineTo(imgX + imgS, sweepY);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            ctx.font = 'bold 15px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#e2e8f0';
+            ctx.textAlign = 'left';
+            ctx.fillText(`STUDY: ${chest ? 'CHEST PA ERECT' : 'HAND PA'}`, cx - frameW / 2 + 34, cy - frameH / 2 + 44);
+            ctx.font = '13px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText(`TECHNIQUE: ${KV[state.examRegion]} kVp / ${MAS[state.examRegion]} mAs`, cx - frameW / 2 + 34, cy - frameH / 2 + 66);
+
+            // Toạ độ giải phẫu (gốc ở giữa ảnh 640×640) → toạ độ thế giới
+            const s = imgS / 640;
+            const tw = (ax, ay) => ({ x: cx + ax * s, y: imgY + imgS / 2 + ay * s });
+            const labelX = cx + frameW / 2 + 70;
+            if (chest) {
+                const bone = tw(146, -71), lung = tw(-120, -20), soft = tw(32, 55);
+                drawCallout(labelX, 320, bone.x, bone.y, "XƯƠNG SƯỜN (cản tia mạnh)", "Hiển thị TRẮNG SÁNG trên ảnh X-quang", '#f8fafc');
+                drawCallout(labelX, 470, soft.x, soft.y, "TIM / MÔ MỀM (cản tia vừa)", "Hiển thị sắc độ XÁM trung gian", '#fb7185');
+                drawCallout(labelX, 620, lung.x, lung.y, "PHỔI CHỨA KHÍ (thấu tia)", "Hiển thị ĐEN do nhiều tia tới đầu thu", '#38bdf8');
+            } else {
+                const bone = tw(-2, -54), soft = tw(-30, 100), air = tw(200, -120);
+                drawCallout(labelX, 320, bone.x, bone.y, "XƯƠNG ĐỐT NGÓN (cản tia mạnh)", "Hiển thị TRẮNG SÁNG trên ảnh X-quang", '#f8fafc');
+                drawCallout(labelX, 470, soft.x, soft.y, "MÔ MỀM (cản tia vừa)", "Hiển thị sắc độ XÁM trung gian", '#94a3b8');
+                drawCallout(labelX, 620, air.x, air.y, "NỀN / KHÔNG KHÍ (thấu tia)", "Hiển thị ĐEN do tia tới đầu thu không bị cản", '#38bdf8');
+            }
+        }
+
+        // ==================== HUD MÀN HÌNH (không bị zoom) ====================
+        function getCaption(scene) {
+            const chest = state.examRegion === 'CHEST';
+            switch (scene) {
+                case 1: return chest
+                    ? 'Chụp ngực thẳng (PA): bệnh nhân đứng, ngực áp sát tấm thu trên giá đứng, tia đi từ lưng ra ngực theo phương ngang. Đèn chuẩn trực (ánh sáng thường, không phải tia X) chỉ rõ vùng sẽ chiếu. Kỹ thuật viên ra phòng điều khiển, đứng sau kính chì rồi mới phát tia.'
+                    : 'Chụp bàn tay (PA): bệnh nhân ngồi cạnh bàn, úp lòng bàn tay lên mặt bàn phía trên tấm thu FPD. Đèn chuẩn trực (ánh sáng thường, không phải tia X) rọi vùng sẽ chiếu. Kỹ thuật viên ra phòng điều khiển, đứng sau kính chì rồi mới phát tia.';
+                case 2: return 'Bên trong bóng phát: catốt có dây tóc nung nóng, anốt quay mang bia vonfram, tất cả nằm trong vỏ thủy tinh chân không. Vỏ chì và dầu cách điện bao ngoài; tia X chỉ thoát qua cửa sổ, qua lọc nhôm và bộ chuẩn trực.';
+                case 3: return `Dây tóc (mA) phát electron; hiệu điện thế ${KV[state.examRegion]} kVp gia tốc chúng tới bia vonfram. Electron bị hãm đột ngột → bức xạ hãm (phổ liên tục)${KV[state.examRegion] >= K_EDGE_W ? ' và tia đặc trưng K' : '; ở kVp thấp này không có tia đặc trưng K'}. Chỉ ~1% năng lượng thành tia X, ~99% thành nhiệt. (Thực tế phơi sáng chỉ vài chục ms; mô phỏng kéo dài để quan sát.)`;
+                case 4: return 'Tia X đi qua cơ thể bị suy giảm theo định luật Beer–Lambert: xương (μ lớn) hấp thụ mạnh nhờ hiệu ứng quang điện, mô mềm vừa phải, phổi chứa khí hấp thụ rất ít. Tia tán xạ Compton bị lưới chống tán xạ chặn lại. Lượng tia còn lại tới đầu thu quyết định độ sáng tối của ảnh.';
+                case 5: return 'Tia X đã tắt, hệ thống đọc dữ liệu: scintillator CsI(Tl) đổi tia X thành ánh sáng xanh, photodiode a-Si đổi ánh sáng thành điện tích, TFT đọc từng hàng, ADC số hóa. Vùng nhận nhiều tia có tín hiệu lớn, vùng xương tín hiệu nhỏ; ảnh được đảo cực để xương hiển thị trắng.';
+                case 6: return 'Ảnh X-quang hoàn chỉnh: xương trắng sáng (cản tia mạnh), mô mềm xám, phổi/khí và nền đen (cho tia đi qua). Đây là ảnh chiếu: mọi lớp mô chồng lên nhau theo hướng chùm tia. Dấu chữ L bằng chì cho biết bên trái của bệnh nhân.';
+                default: return 'Quy trình: tạo tia X → chùm tia xuyên qua cơ thể và bị suy giảm khác nhau → đầu thu ghi nhận → xử lý thành ảnh chẩn đoán. Liều bức xạ được giữ thấp bằng cách chọn kVp/mAs phù hợp, lọc tia mềm và giới hạn trường chiếu.';
+            }
+        }
+
+        function drawSpectrumHUD(x, y, w, h) {
+            const kvp = KV[state.examRegion];
+            hudPanel(x, y, w, h, `PHỔ TIA X (${kvp} kVp, lọc 2,5 mm Al)`, '#38bdf8');
+            const px0 = x + 50, baseY = y + h - 66, pw = w - 76, ph = 150;
+            const Emin = 10, Emax = kvp;
+            const filt = E => Math.exp(-(3.4 * Math.pow(20 / E, 2.9) + 0.15) * 0.675);
+            const cont = E => ((Emax - E) / E) * filt(E);
+            let mx = 0;
+            for (let E = Emin; E < Emax; E += 1) mx = Math.max(mx, cont(E));
+            const xs = E => px0 + (E / Emax) * pw;
+            const ys = v => baseY - (v / mx) * ph * 0.7;
+
+            ctx.save();
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(px0, baseY - ph); ctx.lineTo(px0, baseY); ctx.lineTo(px0 + pw, baseY);
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(xs(Emin), baseY);
+            for (let E = Emin; E < Emax; E += 1) ctx.lineTo(xs(E), ys(cont(E)));
+            ctx.lineTo(xs(Emax), baseY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            const hasK = kvp >= K_EDGE_W;
+            if (hasK) {
+                [[59.3, 0.5, 'Kα'], [67.2, 0.22, 'Kβ']].forEach(([E, amp, nm]) => {
+                    const top = ys(cont(E)) - amp * ph * 0.7;
+                    ctx.strokeStyle = '#a855f7';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(xs(E), ys(cont(E)));
+                    ctx.lineTo(xs(E), top);
+                    ctx.stroke();
+                    ctx.fillStyle = '#d8b4fe';
+                    ctx.font = 'bold 13px "JetBrains Mono", monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(nm, xs(E), top - 6);
+                });
+            }
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            [0, Math.round(Emax / 2), Emax].forEach(E => ctx.fillText(E, xs(E), baseY + 16));
+            ctx.fillText('Năng lượng photon (keV)', px0 + pw / 2, baseY + 32);
+            ctx.textAlign = 'left';
+            ctx.font = '600 13px "Inter", sans-serif';
+            ctx.fillStyle = hasK ? '#d8b4fe' : '#fbbf24';
+            ctx.fillText(hasK ? 'Có vạch đặc trưng K của W (59,3 và 67,2 keV)' : `kVp < 69,5 kV: KHÔNG có vạch đặc trưng K của vonfram`, x + 16, y + h - 12);
+            ctx.restore();
+        }
+
+        function drawMechanismHUD(x, y, w, h) {
+            hudPanel(x, y, w, h, 'CƠ CHẾ PHÁT XẠ TẠI BIA VONFRAM', '#38bdf8');
+            ctx.save();
+            const hasK = KV[state.examRegion] >= K_EDGE_W;
+            ctx.textAlign = 'left';
+            ctx.font = '500 14px "Inter", sans-serif';
+            ctx.fillStyle = '#fde047';
+            ctx.beginPath(); ctx.arc(x + 26, y + 60, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillText('Electron gia tốc từ catốt (−) tới anốt (+)', x + 44, y + 65);
+            drawXrayWavePhoton(x + 26, y + 92, 0, '#38bdf8', 1);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillText('Bức xạ hãm: phổ liên tục, có mặt ở mọi kVp', x + 56, y + 97);
+            drawXrayWavePhoton(x + 26, y + 124, 0, '#a855f7', hasK ? 1 : 0.3);
+            ctx.fillStyle = hasK ? '#cbd5e1' : '#64748b';
+            ctx.fillText(hasK ? 'Bức xạ đặc trưng K (kVp > 69,5)' : 'Bức xạ đặc trưng K: chưa xuất hiện (kVp < 69,5)', x + 56, y + 129);
+
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '600 13px "JetBrains Mono", monospace';
+            ctx.fillText('Hiệu suất tạo tia X ≈ 1%, còn ≈ 99% thành nhiệt', x + 16, y + 160);
+            ctx.fillStyle = '#f97316';
+            ctx.fillRect(x + 16, y + 170, (w - 32) * 0.99, 10);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(x + w - 16 - (w - 32) * 0.01, y + 170, (w - 32) * 0.01, 10);
+            ctx.restore();
+        }
+
+        function drawAttenuationHUD(x, y, w, h) {
+            const chest = state.examRegion === 'CHEST';
+            hudPanel(x, y, w, h, 'SUY GIẢM TIA X (BEER–LAMBERT)', '#38bdf8');
+            ctx.save();
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 20px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('I = I₀ · e^(−∫ μ dx)', x + 20, y + 66);
+
+            const rows = chest
+                ? [['#e2e8f0', 'XƯƠNG: μ lớn → ít tia tới → ảnh TRẮNG'], ['#f43f5e', 'TIM, MÔ MỀM: μ vừa → ảnh XÁM'], ['#38bdf8', 'PHỔI (khí): μ nhỏ → nhiều tia → ảnh ĐEN']]
+                : [['#e2e8f0', 'XƯƠNG: μ lớn → ít tia tới → ảnh TRẮNG'], ['#94a3b8', 'MÔ MỀM: μ vừa → ảnh XÁM'], ['#38bdf8', 'KHÔNG KHÍ: không suy giảm → ảnh ĐEN']];
+            rows.forEach((r, i) => {
+                ctx.fillStyle = r[0];
+                ctx.fillRect(x + 20, y + 94 + i * 34, 16, 16);
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '600 14px "Inter", sans-serif';
+                ctx.fillText(r[1], x + 46, y + 107 + i * 34);
+            });
+            ctx.font = '500 13.5px "Inter", sans-serif';
+            ctx.fillStyle = '#94a3b8';
+            const note = chest
+                ? 'Ở 120 kVp hiệu ứng Compton chiếm ưu thế nên xương và mô mềm chênh lệch ít hơn, giúp nhìn thấy phổi qua xương sườn.'
+                : 'Ở 55 kVp hiệu ứng quang điện (∝ Z³/E³) mạnh nên xương và mô mềm tương phản rất rõ.';
+            wrapLines(note, w - 40).forEach((ln, i) => ctx.fillText(ln, x + 20, y + 214 + i * 20));
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillText('● quang điện: hấp thụ hoàn toàn', x + 20, y + h - 40);
+            ctx.fillStyle = '#c4b5fd';
+            ctx.fillText('● Compton: photon đổi hướng (tán xạ)', x + 20, y + h - 18);
+            ctx.restore();
+        }
+
+        function drawHUD(scene) {
+            ctx.save();
+            if (scene === 3) {
+                drawMechanismHUD(1400, 130, 480, 200);
+                drawSpectrumHUD(1340, 690, 540, 270);
+            }
+            if (scene === 4) drawAttenuationHUD(50, 130, 470, 330);
+
+            // Lời thuyết minh từng bước
+            const bx = 60, by = 972, bw = 1800, bh = 96;
+            ctx.fillStyle = 'rgba(10, 18, 36, 0.9)';
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(bx, by, bw, bh, 14);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '500 19px "Inter", sans-serif';
+            ctx.textAlign = 'left';
+            wrapLines(getCaption(scene), bw - 40).slice(0, 3).forEach((ln, i) => ctx.fillText(ln, bx + 20, by + 30 + i * 27));
+            ctx.restore();
+
+            // Mờ chuyển cảnh tại các mốc
+            let fade = 0;
+            [8, 16, 24, 32, 40, 48].forEach(b => {
+                const d = Math.abs(state.time - b);
+                if (d < 0.3) fade = Math.max(fade, (1 - d / 0.3) * 0.8);
+            });
+            if (fade > 0) {
+                ctx.fillStyle = `rgba(2, 6, 23, ${fade})`;
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            }
+        }
+
+        // ==================== VÒNG LẶP CHÍNH ====================
+        let lastFrameTime = performance.now();
+        let lastZoomText = '';
+
+        function animate(now) {
+            const rawDt = (now - lastFrameTime) / 1000;
+            lastFrameTime = now;
+            const dt = Math.min(rawDt, 0.05);
+
+            if (state.isPlaying) {
+                state.time += dt * state.speed;
+                if (state.autoMode) {
+                    if (state.time >= state.totalDuration) state.time = 0;
+                } else {
+                    // Khóa cảnh: lặp lại trong phạm vi cảnh đang chọn
+                    const sc = SCENES[(state.lockedScene || 1) - 1];
+                    if (state.time >= sc.end) state.time = sc.start + (state.time - sc.end);
+                }
+            }
+
+            document.getElementById('timelineFill').style.width = `${(state.time / state.totalDuration) * 100}%`;
+            document.getElementById('timeCurrent').innerText = formatTime(state.time);
+
+            const activeScene = SCENES.find(s => state.time >= s.start && state.time < s.end) || SCENES[SCENES.length - 1];
+            if (activeScene.id !== state.currentScene) syncSceneUI();
+
+            updateCamera(dt, false);
+            const zt = `${camera.zoom.toFixed(2)}×`;
+            if (zt !== lastZoomText) { lastZoomText = zt; document.getElementById('hudZoomVal').innerText = zt; }
+
+            drawRoomBackdrop();
+
+            const sceneProgress = clamp((state.time - activeScene.start) / (activeScene.end - activeScene.start));
+            const activeDt = state.isPlaying ? dt * state.speed : 0;
+
+            ctx.save();
+            ctx.translate(WIDTH / 2, HEIGHT / 2);
+            ctx.scale(camera.zoom, camera.zoom);
+            ctx.translate(-camera.x, -camera.y);
+            switch (activeScene.id) {
+                case 1: renderRoomScene(false); break;
+                case 2: renderXrayTubeScene(sceneProgress, false, activeDt); break;
+                case 3: renderXrayTubeScene(sceneProgress, true, activeDt); break;
+                case 4: renderScene4(sceneProgress, activeDt); break;
+                case 5: renderScene5(sceneProgress); break;
+                case 6: renderScene6(sceneProgress); break;
+                case 7: renderRoomScene(true); break;
+            }
+            ctx.restore();
+
+            drawHUD(activeScene.id);
+
+            // Chữ tiêu đề cảnh cuối
+            if (activeScene.id === 7) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
+                ctx.beginPath();
+                ctx.roundRect(WIDTH / 2 - 280, 125, 560, 74, 16);
+                ctx.fill();
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2.5;
+                ctx.shadowColor = '#0284c7';
+                ctx.shadowBlur = 20;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                ctx.font = 'bold 30px "Inter", sans-serif';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.fillText("TẠO ẢNH BẰNG TIA X", WIDTH / 2, 172);
+                ctx.restore();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('load', () => {
+            fitStage();
+            initTubeParticles();
+            buildRadiographs();
+            buildRays();
+            syncSceneUI();
+            updateAutoUI();
+            updatePlayPauseUI();
+            updateCamera(0, true);
+            requestAnimationFrame(animate);
+            // Dựng lại ảnh offscreen khi font Inter đã tải để chữ "L" đúng font
+            if (document.fonts && document.fonts.ready) document.fonts.ready.then(buildRadiographs);
+        });
+    </script>
+</body>
+</html>

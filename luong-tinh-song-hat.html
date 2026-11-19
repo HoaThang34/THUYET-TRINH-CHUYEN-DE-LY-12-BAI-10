@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lưỡng tính sóng – hạt · Vật lí 12 · Bài 10</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   1. DESIGN TOKENS — "Sổ tay thí nghiệm" (light only)
+   ============================================================ */
+:root{
+  --paper:#f7f3e8;
+  --paper-2:#efe8d7;
+  --paper-3:#fdfbf5;
+  --ink:#14213d;
+  --ink-2:#3d4a63;
+  --ink-3:#6c778c;
+  --blue:#1f4fd8;
+  --blue-soft:#dbe4ff;
+  --red:#dc4a2a;
+  --red-soft:#ffe0d7;
+  --teal:#0b8b7c;
+  --teal-soft:#d3f2ec;
+  --gold:#d99a1c;
+  --gold-soft:#fbecc7;
+  --violet:#6746cf;
+  --violet-soft:#e8e1ff;
+  --rule:#d9d1bd;
+  --rule-2:#c4b9a0;
+  --stage-bg:#e7e0cf;
+  --slide-bg:var(--paper);
+  --display:'Fraunces',Georgia,serif;
+  --body:'Be Vietnam Pro',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+
+/* ============================================================
+   2. MANDATORY FIXED 16:9 STAGE (viewport-base.css, inlined)
+   ============================================================ */
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage-bg)}
+.deck-viewport{position:fixed;inset:0;overflow:hidden;background:var(--stage-bg)}
+.deck-stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;transform-origin:0 0;background:var(--slide-bg)}
+.slide{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden;display:block;visibility:hidden;opacity:0;pointer-events:none;background:var(--slide-bg);transform:scale(.985);transition:opacity .5s var(--ease),transform .7s var(--ease)}
+.slide.active{transform:none}
+.slide.active,.slide.visible{visibility:visible;opacity:1;pointer-events:auto;z-index:1}
+img,video,canvas,svg{max-width:100%;max-height:100%}
+.deck-controls{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:1000}
+@media print{
+  html,body{width:1920px;height:auto;overflow:visible;background:#fff}
+  .deck-viewport{position:static;overflow:visible;background:#fff}
+  .deck-stage{position:static;width:auto;height:auto;transform:none!important;background:none}
+  .slide{position:relative;display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;width:1920px;height:1080px;break-after:page;page-break-after:always}
+  .slide:last-child{break-after:auto;page-break-after:auto}
+  .deck-controls,.hud,.progress{display:none!important}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.2s!important}}
+
+/* ============================================================
+   3. BASE / TYPOGRAPHY  (authored at 1920×1080)
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--body);color:var(--ink);-webkit-font-smoothing:antialiased}
+.slide{font-family:var(--body)}
+.pad{position:absolute;inset:0;padding:64px 96px 86px;display:flex;flex-direction:column}
+
+.eyebrow{font-family:var(--mono);font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:14px}
+.eyebrow::before{content:"";width:34px;height:2px;background:var(--red);display:inline-block}
+.eyebrow.blue::before{background:var(--blue)}
+.eyebrow.teal::before{background:var(--teal)}
+
+h1.display{font-family:var(--display);font-weight:800;font-size:160px;line-height:.92;letter-spacing:-.035em;font-variation-settings:'opsz' 144,'SOFT' 20,'WONK' 1}
+h1.display em{font-style:italic;font-weight:500;color:var(--blue);font-variation-settings:'opsz' 144,'SOFT' 100,'WONK' 1}
+h2.h{font-family:var(--display);font-weight:800;font-size:92px;line-height:1.02;letter-spacing:-.03em;font-variation-settings:'opsz' 90,'SOFT' 10}
+h2.h em{font-style:italic;font-weight:500;color:var(--blue)}
+h3.sub{font-family:var(--display);font-weight:700;font-size:38px;line-height:1.12;letter-spacing:-.02em}
+.lead{font-size:40px;line-height:1.5;color:var(--ink-2);max-width:1180px}
+.body{font-size:34px;line-height:1.6;color:var(--ink-2)}
+.small{font-size:25px;line-height:1.55;color:var(--ink-3)}
+.mono{font-family:var(--mono)}
+.accent{color:var(--red)}
+.accent-b{color:var(--blue)}
+.accent-t{color:var(--teal)}
+.hl{background:linear-gradient(180deg,transparent 58%,var(--gold-soft) 58%,var(--gold-soft) 94%,transparent 94%)}
+.hl-b{background:linear-gradient(180deg,transparent 58%,var(--blue-soft) 58%,var(--blue-soft) 94%,transparent 94%)}
+
+/* --- slide head / footer chrome --- */
+.slide-head{display:flex;justify-content:space-between;align-items:baseline;gap:24px;margin-bottom:26px;flex:0 0 auto}
+.slide-foot{position:absolute;left:96px;right:96px;bottom:38px;display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:19px;color:var(--ink-3);letter-spacing:.06em}
+.slide-foot .src{max-width:1050px;font-size:13px;opacity:.8;line-height:1.4}
+.body-area{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center}
+
+/* ============================================================
+   4. BACKGROUNDS (atmospheric, light)
+   ============================================================ */
+.bg-grid,.bg-dots,.bg-lines,.bg-glow{position:absolute;inset:0;pointer-events:none}
+.bg-grid{background-image:linear-gradient(rgba(20,33,61,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(20,33,61,.055) 1px,transparent 1px);background-size:60px 60px}
+.bg-grid.fine{background-size:30px 30px;opacity:.6}
+.bg-dots{background-image:radial-gradient(rgba(20,33,61,.13) 1.4px,transparent 1.4px);background-size:34px 34px}
+.bg-lines{background:repeating-linear-gradient(-45deg,rgba(20,33,61,.035) 0 2px,transparent 2px 16px)}
+.bg-glow{background:
+  radial-gradient(900px 600px at 85% 8%,rgba(31,79,216,.10),transparent 70%),
+  radial-gradient(800px 700px at 8% 96%,rgba(220,74,42,.09),transparent 70%),
+  radial-gradient(600px 500px at 50% 50%,rgba(217,154,28,.06),transparent 70%)}
+.vignette{position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(20,33,61,.05)}
+
+/* ============================================================
+   5. REVEAL ANIMATION SYSTEM
+   ============================================================ */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.slide.visible .reveal{opacity:1;transform:none}
+.slide.visible .reveal.d1{transition-delay:.08s}
+.slide.visible .reveal.d2{transition-delay:.18s}
+.slide.visible .reveal.d3{transition-delay:.28s}
+.slide.visible .reveal.d4{transition-delay:.38s}
+.slide.visible .reveal.d5{transition-delay:.48s}
+.slide.visible .reveal.d6{transition-delay:.58s}
+.reveal.from-l{transform:translateX(-40px)}
+.reveal.from-r{transform:translateX(40px)}
+.reveal.zoom{transform:scale(.92)}
+.slide.visible .reveal.from-l,.slide.visible .reveal.from-r,.slide.visible .reveal.zoom{transform:none}
+
+/* floating / ambient keyframes */
+@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes drift{0%{transform:translate(0,0)}50%{transform:translate(10px,-16px)}100%{transform:translate(0,0)}}
+@keyframes spinSlow{to{transform:rotate(360deg)}}
+@keyframes pulseRing{0%{transform:scale(.6);opacity:.8}100%{transform:scale(1.9);opacity:0}}
+@keyframes dash{to{stroke-dashoffset:0}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.float{animation:floatY 6s ease-in-out infinite}
+.drift{animation:drift 9s ease-in-out infinite}
+.spin{animation:spinSlow 26s linear infinite}
+
+/* ============================================================
+   6. COMPONENTS
+   ============================================================ */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.split.wide-l{grid-template-columns:1.15fr .85fr}
+.split.wide-r{grid-template-columns:.85fr 1.15fr}
+.split-3{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+
+.card{background:var(--paper-3);border:1px solid var(--rule);border-radius:20px;padding:30px 32px;box-shadow:0 14px 34px -22px rgba(20,33,61,.35);position:relative}
+.card.tint-b{background:#eef2ff;border-color:#c9d5f7}
+.card.tint-r{background:#fff0ea;border-color:#f6cbbb}
+.card.tint-t{background:#e9faf6;border-color:#bfe8df}
+.card.tint-g{background:#fdf4dc;border-color:#efdcaf}
+.card .num{font-family:var(--mono);font-size:18px;letter-spacing:.1em;color:var(--ink-3);display:block;margin-bottom:10px}
+.card h3{font-family:var(--display);font-size:36px;font-weight:700;letter-spacing:-.02em;margin-bottom:8px}
+.card p{font-size:27px;line-height:1.5;color:var(--ink-2)}
+
+.pill{display:inline-flex;align-items:center;gap:9px;padding:9px 18px;border-radius:999px;font-family:var(--mono);font-size:18px;letter-spacing:.06em;background:var(--paper-3);border:1px solid var(--rule-2);color:var(--ink-2)}
+.pill.red{background:var(--red-soft);border-color:#f3b9a7;color:#9d2f16}
+.pill.blue{background:var(--blue-soft);border-color:#bccbf5;color:#173a9e}
+.pill.teal{background:var(--teal-soft);border-color:#a9dfd5;color:#06665b}
+.pill.gold{background:var(--gold-soft);border-color:#ecd08c;color:#8a5f05}
+
+.big-stat{font-family:var(--display);font-weight:800;font-size:104px;line-height:.9;letter-spacing:-.04em;color:var(--blue)}
+.big-stat small{font-family:var(--body);font-size:31px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+
+.formula{font-family:var(--mono);font-size:46px;line-height:1.4;letter-spacing:-.01em;background:var(--paper-3);border:1px solid var(--rule);border-left:6px solid var(--blue);border-radius:12px;padding:22px 28px;display:inline-block}
+.formula em{font-style:normal;color:var(--blue);font-weight:600}
+.formula .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 6px;font-size:.85em;line-height:1.15}
+.formula .frac span:first-child{border-bottom:2px solid currentColor;padding:0 8px}
+
+.quote em{color:var(--blue)}
+.quote{font-family:var(--display);font-style:italic;font-weight:500;font-size:64px;line-height:1.25;letter-spacing:-.02em;max-width:1320px}
+.quote .mark{color:var(--red);font-size:130px;line-height:0;vertical-align:-.28em;margin-right:6px}
+.attr{font-family:var(--mono);font-size:26px;letter-spacing:.08em;color:var(--ink-3);margin-top:26px}
+
+.bullets{display:flex;flex-direction:column;gap:20px}
+.bullets li{list-style:none;display:flex;gap:18px;font-size:34px;line-height:1.45;color:var(--ink-2)}
+.bullets li b{color:var(--ink)}
+.bullets .dot{flex:0 0 14px;height:14px;border-radius:50%;background:var(--red);margin-top:14px}
+.bullets.blue .dot{background:var(--blue)}
+.bullets.teal .dot{background:var(--teal)}
+
+.kv{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--rule);padding:14px 0;gap:20px}
+.kv dt{font-size:26px;color:var(--ink-3)}
+.kv dd{font-family:var(--mono);font-size:30px;color:var(--ink);font-weight:600}
+
+/* --- Buttons / lab controls --- */
+.btn{appearance:none;border:1px solid var(--ink);background:var(--ink);color:#fff;font-family:var(--body);font-weight:600;font-size:23px;padding:13px 24px;border-radius:999px;cursor:pointer;transition:transform .18s var(--ease),background .18s,color .18s,box-shadow .18s;display:inline-flex;align-items:center;gap:10px}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 22px -10px rgba(20,33,61,.6)}
+.btn:active{transform:translateY(0) scale(.98)}
+.btn.light{background:var(--paper-3);color:var(--ink)}
+.btn.blue{background:var(--blue);border-color:var(--blue)}
+.btn.red{background:var(--red);border-color:var(--red)}
+.btn.teal{background:var(--teal);border-color:var(--teal)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule-2)}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff}
+
+.lab{background:linear-gradient(180deg,#fffdf8,#fbf8ee);border:1px solid var(--rule);border-radius:22px;padding:22px 26px 18px;box-shadow:0 26px 60px -40px rgba(20,33,61,.55);position:relative}
+.lab::before{content:"";position:absolute;left:26px;right:26px;top:0;height:4px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,var(--blue),var(--teal),var(--gold),var(--red))}
+.lab canvas{width:100%;display:block;border-radius:14px;background:#fbf9f2;border:1px solid #e6dfcc}
+.lab-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+.lab-note{font-size:17px;color:var(--ink-3);line-height:1.45}
+.readout{font-family:var(--mono);font-size:16px;color:var(--ink-2);background:var(--paper-2);border-radius:8px;padding:8px 12px}
+.readout b{color:var(--blue)}
+
+input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;background:#ded5c2;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 2px 8px rgba(20,33,61,.35);cursor:grab}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 2px 8px rgba(20,33,61,.35);cursor:grab}
+.slider-row{display:grid;grid-template-columns:160px 1fr 96px;align-items:center;gap:14px;margin:10px 0;font-size:18px;color:var(--ink-2)}
+.slider-row .val{font-family:var(--mono);font-size:17px;text-align:right;color:var(--ink)}
+.slider-row label{font-size:18px}
+
+.choices{display:flex;flex-direction:column;gap:14px}
+.choice{display:flex;align-items:center;gap:18px;padding:22px 26px;border:1.5px solid var(--rule-2);background:var(--paper-3);border-radius:14px;font-size:31px;cursor:pointer;transition:.2s var(--ease);text-align:left;font-family:var(--body);color:var(--ink)}
+.choice:hover{border-color:var(--blue);transform:translateX(6px)}
+.choice .key{font-family:var(--mono);font-size:18px;width:34px;height:34px;border-radius:8px;border:1.5px solid var(--rule-2);display:grid;place-items:center;flex:0 0 auto}
+.choice.correct{background:#e7f8f1;border-color:var(--teal)}
+.choice.wrong{background:#ffeae4;border-color:var(--red)}
+.choice.correct .key{background:var(--teal);color:#fff;border-color:var(--teal)}
+.choice.wrong .key{background:var(--red);color:#fff;border-color:var(--red)}
+.feedback{font-size:20px;line-height:1.45;min-height:30px;color:var(--ink-2);margin-top:14px}
+.feedback b{color:var(--teal)}
+.feedback.bad b{color:var(--red)}
+/* quiz layout */
+.choices.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.choices.grid2 .choice{font-size:29px;line-height:1.35;align-items:flex-start;padding:22px 24px}
+.choices.grid2 .choice .key{margin-top:1px}
+.choices.answered .choice{cursor:default}
+.choices.answered .choice:hover{transform:none;border-color:var(--rule-2)}
+.choices.answered .choice.correct:hover{border-color:var(--teal)}
+.choices.answered .choice.wrong:hover{border-color:var(--red)}
+.answer-box{display:none;margin-top:24px;padding:22px 30px;border-radius:16px;border:1.5px solid #bfe6da;background:#ecfaf5;max-width:1560px}
+.answer-box.show{display:block;animation:abIn .45s var(--ease)}
+.answer-box.bad{border-color:#f3c2b6;background:#fff3ee}
+.ans-head{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+.ans-verdict{font-family:var(--mono);font-size:16px;letter-spacing:.12em;text-transform:uppercase;background:var(--teal);color:#fff;padding:5px 12px;border-radius:6px}
+.answer-box.bad .ans-verdict{background:var(--red)}
+.ans-key{font-family:var(--mono);font-size:24px;color:var(--teal);font-weight:600}
+.answer-box.bad .ans-key{color:var(--red)}
+.ans-text{font-size:26px;line-height:1.55;color:var(--ink-2)}
+@keyframes abIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.quiz-body{justify-content:center}
+.body-area.quiz-body{padding-bottom:30px}
+.quiz-body .choices.grid2{max-width:1560px}
+
+/* --- timeline --- */
+.timeline{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:20px;margin-top:52px}
+.timeline::before{content:"";position:absolute;left:0;right:0;top:38px;height:2px;background:var(--rule-2)}
+.tl-item{position:relative;padding-top:82px;cursor:pointer}
+.tl-item .node{position:absolute;top:26px;left:0;width:26px;height:26px;border-radius:50%;background:var(--paper);border:3px solid var(--rule-2);transition:.25s}
+.tl-item:hover .node,.tl-item.on .node{background:var(--red);border-color:var(--red);box-shadow:0 0 0 8px rgba(220,74,42,.14)}
+.tl-item .yr{font-family:var(--mono);font-size:21px;color:var(--red);letter-spacing:.05em;margin-bottom:8px}
+.tl-item h4{font-family:var(--display);font-size:35px;line-height:1.1;font-weight:700;margin-bottom:6px}
+.tl-item p{font-size:23px;line-height:1.45;color:var(--ink-3)}
+.tl-item .node::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:1px solid rgba(220,74,42,.5);opacity:0}
+.tl-item.on .node::after{animation:pulseRing 1.6s ease-out infinite}
+
+/* --- photo frames --- */
+.photo{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--rule-2);background:#fff;box-shadow:0 22px 50px -30px rgba(20,33,61,.6)}
+.photo img{display:block;width:100%;height:100%;object-fit:cover}
+.photo .cap{position:absolute;left:0;right:0;bottom:0;padding:16px 20px;background:linear-gradient(transparent,rgba(20,33,61,.82));color:#fff;font-size:20px;line-height:1.4}
+.photo.tilt{transform:rotate(-1.6deg)}
+.photo.tilt-r{transform:rotate(1.4deg)}
+.tape{position:absolute;width:120px;height:32px;background:rgba(226,199,138,.65);border:1px solid rgba(180,150,90,.35);transform:rotate(-4deg);z-index:3}
+.tape.tl{top:-14px;left:22px}.tape.tr{top:-14px;right:22px;transform:rotate(4deg)}
+
+/* --- diagram helpers --- */
+.embed{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--rule-2);background:#04060b;box-shadow:0 24px 60px -34px rgba(20,33,61,.75)}
+.embed iframe{display:block;width:100%;height:100%;border:0;background:#04060b}
+.diagram{position:relative;border-radius:18px;background:var(--paper-3);border:1px solid var(--rule);overflow:hidden}
+.diagram svg{display:block;width:100%;height:100%}
+.axis{stroke:#8b93a5;stroke-width:1.4}
+.gridline{stroke:#e3dbc8;stroke-width:1}
+.lbl{font-family:var(--mono);font-size:14px;fill:#5d6880}
+.lbl-big{font-family:var(--display);font-size:22px;fill:#14213d;font-weight:700}
+.anno{font-family:var(--body);font-size:15px;fill:#3d4a63}
+
+/* --- misc --- */
+.two-col-text{column-count:2;column-gap:52px;font-size:23px;line-height:1.6;color:var(--ink-2)}
+.divider{display:flex;align-items:center;gap:18px;color:var(--ink-3);font-family:var(--mono);font-size:16px;letter-spacing:.1em}
+.divider::before,.divider::after{content:"";height:1px;background:var(--rule);flex:1}
+.badge-corner{position:absolute;right:96px;top:64px;text-align:right;font-family:var(--mono);font-size:15px;color:var(--ink-3);line-height:1.8}
+.badge-corner b{display:block;font-family:var(--display);font-size:24px;color:var(--ink);font-weight:700}
+.corner-mark{position:absolute;width:26px;height:26px;border-color:var(--rule-2);border-style:solid;border-width:0;pointer-events:none}
+.cm-tl{top:26px;left:26px;border-top-width:2px;border-left-width:2px}
+.cm-tr{top:26px;right:26px;border-top-width:2px;border-right-width:2px}
+.cm-bl{bottom:26px;left:26px;border-bottom-width:2px;border-left-width:2px}
+.cm-br{bottom:26px;right:26px;border-bottom-width:2px;border-right-width:2px}
+
+/* section-divider slide */
+.section-slide .pad{justify-content:center}
+.section-slide .sec-no{font-family:var(--display);font-weight:800;font-size:260px;line-height:.75;color:transparent;-webkit-text-stroke:2px var(--rule-2);letter-spacing:-.06em;position:absolute;right:80px;top:110px;opacity:.9}
+.section-slide h1{font-family:var(--display);font-weight:800;font-size:104px;line-height:.98;letter-spacing:-.035em;max-width:1250px}
+
+/* ============================================================
+   7. DECK CHROME / HUD
+   ============================================================ */
+.hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:14px 22px;z-index:900;pointer-events:none;font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:#6d6553;text-transform:uppercase}
+.hud .left{display:flex;align-items:center;gap:10px;pointer-events:auto}
+.hud .dotmark{width:8px;height:8px;border-radius:50%;background:var(--red);animation:blink 2.4s infinite}
+.progress{position:fixed;left:0;right:0;bottom:0;height:4px;background:rgba(20,33,61,.10);z-index:1001}
+.progress .bar{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--teal),var(--gold),var(--red));transition:width .45s var(--ease)}
+.deck-controls{display:flex;align-items:center;gap:8px;background:rgba(253,251,245,.92);border:1px solid rgba(20,33,61,.15);border-radius:999px;padding:8px 12px;box-shadow:0 12px 30px -16px rgba(20,33,61,.45);backdrop-filter:blur(8px)}
+.ctl{appearance:none;border:0;background:transparent;width:40px;height:40px;border-radius:50%;cursor:pointer;display:grid;place-items:center;color:var(--ink);font-size:16px;transition:.18s}
+.ctl:hover{background:rgba(20,33,61,.08)}
+.ctl svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.counter{font-family:var(--mono);font-size:13px;letter-spacing:.08em;color:var(--ink-2);padding:0 6px;min-width:78px;text-align:center}
+.counter b{color:var(--ink)}
+.sound-off .snd-on{display:none}
+.sound-on .snd-off{display:none}
+
+/* overview grid */
+.overview{position:fixed;inset:0;background:rgba(247,243,232,.97);z-index:2000;display:none;padding:52px 64px;overflow:auto;backdrop-filter:blur(6px)}
+.overview.show{display:block}
+.overview h2{font-family:var(--display);font-size:34px;margin-bottom:6px}
+.overview .hint{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--ink-3);margin-bottom:26px}
+.ov-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+.ov-item{background:#fffdf7;border:1px solid var(--rule);border-radius:10px;padding:12px 13px;cursor:pointer;transition:.15s;min-height:92px}
+.ov-item:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:0 8px 18px -10px rgba(20,33,61,.4)}
+.ov-item b{display:block;font-family:var(--mono);font-size:11px;color:var(--red);margin-bottom:5px}
+.ov-item span{display:block;font-size:13px;line-height:1.35;color:var(--ink-2)}
+.ov-item.cur{outline:2px solid var(--blue);outline-offset:1px}
+
+/* edit affordance */
+.edit-hotzone{position:fixed;top:0;left:0;width:64px;height:64px;z-index:10000;cursor:pointer}
+.edit-toggle{position:fixed;top:12px;left:12px;z-index:10001;opacity:0;pointer-events:none;transition:opacity .3s;border:0;background:var(--ink);color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:16px}
+.edit-toggle.show,.edit-toggle.active{opacity:1;pointer-events:auto}
+[contenteditable="true"]{outline:2px dashed var(--blue);outline-offset:4px;border-radius:4px}
+body.edit-mode .slide{visibility:visible;opacity:1;position:relative}
+body.edit-mode .deck-stage{position:static;height:auto;width:100%;transform:none!important}
+body.edit-mode .deck-viewport{position:static;overflow:auto;height:auto}
+body.edit-mode .slide{margin-bottom:20px;box-shadow:0 0 0 3px #ccc}
+body.edit-mode .deck-controls,body.edit-mode .hud,body.edit-mode .progress{display:none}
+
+/* screen-reader only */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+</style>
+</head>
+<body>
+<div class="bg-glow" style="position:fixed"></div>
+
+<div class="hud">
+  <div class="left"><span class="dotmark"></span><span>Vật lí 12 · Bài 10</span></div>
+  <div class="right">Lưỡng tính sóng – hạt</div>
+</div>
+
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+<!-- ============================================================
+     SLIDE 01 — TITLE
+     ============================================================ -->
+<section class="slide title-slide active" data-title="Mở đầu">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <span class="corner-mark cm-tl"></span><span class="corner-mark cm-tr"></span><span class="corner-mark cm-bl"></span><span class="corner-mark cm-br"></span>
+  <div class="pad" style="justify-content:center">
+    <div class="eyebrow reveal d1">Vật lí 12 · Chương Lượng tử · Bài 10</div>
+    <h1 class="display reveal d2" style="margin:24px 0 18px">Lưỡng tính<br><em>sóng – hạt</em></h1>
+  </div>
+  <svg class="reveal d5" viewBox="0 0 760 300" style="position:absolute;right:90px;top:250px;width:760px;height:300px;opacity:.9" aria-hidden="true">
+    <path d="M0 150 Q40 90 80 150 T160 150 T240 150 T320 150" fill="none" stroke="#1f4fd8" stroke-width="3"/>
+    <path d="M0 210 Q40 150 80 210 T160 210 T240 210 T320 210" fill="none" stroke="#0b8b7c" stroke-width="3" opacity=".55"/>
+    <g fill="#14213d">
+      <circle cx="420" cy="150" r="6"/><circle cx="480" cy="150" r="6"/><circle cx="540" cy="150" r="6"/>
+      <circle cx="600" cy="150" r="6"/><circle cx="660" cy="150" r="6"/><circle cx="720" cy="150" r="6"/>
+    </g>
+    <line x1="0" y1="255" x2="740" y2="255" stroke="#c4b9a0" stroke-width="1.2"/>
+    <text x="0" y="288" font-family="IBM Plex Mono, monospace" font-size="15" fill="#6c778c">SÓNG</text>
+    <text x="420" y="288" font-family="IBM Plex Mono, monospace" font-size="15" fill="#6c778c">HẠT</text>
+  </svg>
+  <div class="slide-foot"><span>Sổ tay thí nghiệm · Nhấn → để bắt đầu</span><span class="mono">01 / 27</span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 02 — OPENING QUESTION
+     ============================================================ -->
+<section class="slide" data-title="Trích dẫn Feynman">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="pad" style="justify-content:center">
+    <div class="eyebrow reveal d1">Trích dẫn</div>
+    <p class="quote reveal d2" style="font-size:105px;margin-top:34px;max-width:1600px"><span class="mark">“</span>Tôi có thể dám chắc với bạn rằng <em>không ai hiểu được</em> cơ học lượng tử!”</p>
+    <div class="attr reveal d3" style="font-size:40px;margin-top:46px">— Richard Feynman</div>
+  </div>
+  <div class="slide-foot"><span>Trích dẫn</span><span class="mono">02 / 27</span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 03 — ROADMAP
+     ============================================================ -->
+<section class="slide" data-title="Năm mốc lịch sử">
+  <div class="bg-grid fine"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow blue">Lộ trình</div><span class="pill blue">5 mốc · 300 năm</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:75px">Câu trả lời thay đổi<br>qua <em>năm thế kỷ</em>.</h2>
+      <div class="timeline reveal d2">
+        <div class="tl-item"><span class="node"></span><div class="yr">Thế kỷ 17</div><h4>Hạt lên ngôi</h4><p>Thuyết hạt của Newton thống trị</p></div>
+        <div class="tl-item"><span class="node"></span><div class="yr">1801–1819</div><h4>Sóng lội ngược dòng</h4><p>Khe Young · vết sáng Arago</p></div>
+        <div class="tl-item"><span class="node"></span><div class="yr">1865–1888</div><h4>Sóng điện từ</h4><p>Maxwell · Hertz</p></div>
+        <div class="tl-item"><span class="node"></span><div class="yr">1900–1905</div><h4>Sự trở lại của hạt</h4><p>Planck · Einstein · photon</p></div>
+        <div class="tl-item"><span class="node"></span><div class="yr">1924–1927</div><h4>Sóng vật chất</h4><p>De Broglie · Davisson–Germer</p></div>
+      </div>
+      <p class="lead reveal d3" style="margin-top:34px;font-size:30px">Mỗi mốc lật đổ mốc trước. Không mốc nào là “sai hoàn toàn” — chúng chỉ đúng trong giới hạn của mình.</p>
+    </div>
+    <div class="slide-foot"><span>Lộ trình</span><span class="mono">03 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 04 — MILESTONE 1 CONTEXT
+     ============================================================ -->
+<section class="slide" data-title="Thuyết hạt của Newton">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow red">Mốc 1 · Thế kỷ 17</div><span class="pill red">Thuyết hạt</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:72px">Ánh sáng là<br><em>dòng hạt</em>.</h2>
+      <div class="split reveal d2" style="margin-top:26px;gap:34px;align-items:stretch">
+        <div class="card tint-b" style="padding:28px 30px">
+          <span class="num">NEWTON · CORPUSCULAR THEORY</span>
+          <h3 style="font-size:35px">Ánh sáng là hạt cực nhỏ</h3>
+          <p style="font-size:25px">Phát ra từ nguồn sáng và chuyển động theo đường thẳng. Giải thích rất trực quan truyền thẳng, phản xạ (như bóng nảy tường) và khúc xạ.</p>
+        </div>
+        <div class="card tint-r" style="padding:28px 30px">
+          <span class="num">ĐIỀU CẦN NÓI RÕ</span>
+          <h3 style="font-size:35px">Không có thí nghiệm quyết định</h3>
+          <p style="font-size:25px">Thời đó chưa có thí nghiệm nào phân biệt rõ mô hình hạt và mô hình sóng. Newton dựa trên nhiều hiện tượng quang học để củng cố giả thuyết.</p>
+        </div>
+      </div>
+      <div class="reveal d3" style="margin-top:22px;display:flex;gap:20px;align-items:center;background:var(--paper-3);border:1px solid var(--rule);border-left:6px solid var(--ink);border-radius:12px;padding:18px 24px">
+        <span class="pill">HUYGENS</span>
+        <p style="font-size:26px;color:var(--ink-2)">Đề xuất thuyết sóng với môi trường “ether”. Uy quyền của Newton khiến lý thuyết này bị gạt bỏ hơn <b>100 năm</b>.</p>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 1 · Bối cảnh</span><span class="mono">04 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 05 — NEWTON PRISM
+     ============================================================ -->
+<section class="slide" data-title="1670–1672 · Lăng kính Newton">
+  <div class="bg-grid"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow">Mốc 1 · 1670–1672</div><span class="pill gold">Thí nghiệm lăng kính</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:68px">Ánh sáng trắng là <em>hỗn hợp các màu</em>.</h2>
+      <div class="split reveal d2" style="margin-top:22px;gap:44px;align-items:center">
+        <div class="photo" style="height:430px">
+          <img src="thi-nghiem-lang-kinh-newton.jpg" alt="Thí nghiệm lăng kính của Newton">
+          <div class="cap">Thí nghiệm tiêu biểu của Newton về ánh sáng.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="diagram" style="padding:18px 22px">
+            <svg viewBox="0 0 620 150" style="width:100%;height:auto">
+              <path d="M20 75 L250 75" stroke="#f2ecdc" stroke-width="12" stroke-linecap="round"/>
+              <path d="M20 75 L250 75" stroke="#d99a1c" stroke-width="4"/>
+              <polygon points="250,40 250,110 320,75" fill="#e8eefc" stroke="#1f4fd8" stroke-width="2"/>
+              <g stroke-width="5" stroke-linecap="round">
+                <path d="M320 75 L600 20" stroke="#e23b2e"/><path d="M320 75 L600 34" stroke="#f2a01e"/>
+                <path d="M320 75 L600 50" stroke="#f2c81e"/><path d="M320 75 L600 66" stroke="#4fbf5e"/>
+                <path d="M320 75 L600 82" stroke="#2c8fe0"/><path d="M320 75 L600 100" stroke="#3b45c8"/>
+                <path d="M320 75 L600 120" stroke="#8a35b8"/>
+              </g>
+              <text x="24" y="52" font-family="IBM Plex Mono, monospace" font-size="13" fill="#6c778c">ÁNH SÁNG TRẮNG</text>
+              <text x="430" y="145" font-family="IBM Plex Mono, monospace" font-size="13" fill="#6c778c">DẢI MÀU</text>
+            </svg>
+          </div>
+          <ul class="bullets" style="gap:14px">
+            <li><span class="dot"></span><span><b>Kết luận đúng:</b> ánh sáng trắng là hỗn hợp nhiều màu.</span></li>
+            <li><span class="dot"></span><span><b>Không</b> chứng minh ánh sáng là hạt: mô hình sóng cũng giải thích được tán sắc.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 1 · Lăng kính</span><span class="mono">05 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 06 — NEWTON VS HUYGENS + FOUCAULT
+     ============================================================ -->
+<section class="slide" data-title="Hai dự đoán trái ngược">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow blue">Mốc 1 · Cuộc so găng</div><span class="pill">Ánh sáng vào nước</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:70px">Hai dự đoán trái ngược.<br>Một thí nghiệm <em>phán xử</em>.</h2>
+      <div class="split reveal d2" style="margin-top:26px;gap:30px;align-items:stretch">
+        <div class="card tint-b" style="padding:28px 30px">
+          <span class="num">NEWTON · MÔ HÌNH HẠT</span>
+          <div class="mono" style="font-size:38px;color:var(--blue);margin:10px 0 12px">v<sub>nước</sub> &gt; v<sub>không khí</sub></div>
+          <p style="font-size:27px">Hạt bị “hút” vào môi trường đặc hơn nên tăng tốc.</p>
+        </div>
+        <div class="card tint-t" style="padding:28px 30px">
+          <span class="num">HUYGENS · MÔ HÌNH SÓNG</span>
+          <div class="mono" style="font-size:38px;color:#06665b;margin:10px 0 12px">v<sub>nước</sub> &lt; v<sub>không khí</sub></div>
+          <p style="font-size:27px">Sóng truyền chậm hơn trong môi trường “nặng” hơn.</p>
+        </div>
+      </div>
+      <div class="reveal d3" style="margin-top:26px;display:flex;gap:26px;align-items:center;background:#fdf4dc;border:1px solid #efdcaf;border-radius:14px;padding:22px 28px">
+        <div class="big-stat" style="font-size:86px;color:#8a5f05">1850</div>
+        <div>
+          <p style="font-size:30px;color:var(--ink)"><b>Léon Foucault</b> đo vận tốc ánh sáng trong nước và không khí.</p>
+          <p style="font-size:27px;color:var(--ink-2);margin-top:6px">Kết quả: ánh sáng trong nước chậm hơn — <b style="color:#06665b">phù hợp với Huygens</b>, trái với thuyết hạt.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 1 · Foucault 1850</span><span class="mono">06 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 07 — YOUNG + SIM
+     ============================================================ -->
+<section class="slide" data-title="1801 · Khe Young">
+  <div class="bg-grid fine"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow teal">Mốc 2 · 1801</div><span class="pill teal">Thí nghiệm 01</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Thí nghiệm Giao thoa khe Young:</h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:16px;justify-content:center">
+          <!-- <p class="body" style="font-size:29px">Thomas Young chiếu sáng qua hai khe hẹp và thu được các vân sáng – tối xen kẽ trên màn.</p> -->
+          <ul class="bullets" style="gap:14px">
+            <li><span class="dot"></span><span>Các hạt <b>không thể</b> tự triệt tiêu nhau để tạo bóng tối tuyệt đối.</span></li>
+            <li><span class="dot"></span><span>Sóng thì có — nên đây là bằng chứng trực tiếp cho tính sóng.</span></li>
+          </ul>
+          <a class="btn ghost" href="new2.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="new2.html" loading="lazy" title="Mô phỏng giao thoa khe Young"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 2 · Young</span><span class="mono">07 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 08 — ARAGO + SIM
+     ============================================================ -->
+<section class="slide" data-title="1818 · Vết sáng Arago">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow red">Mốc 2 · 1818</div><span class="pill red">Thí nghiệm 02</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Vết sáng ở <em>Arago</em></h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <p class="body" style="font-size:28px">Năm 1818, Arago thực hiện thí nghiệm khẳng định ánh sáng là sóng.</p>
+          <!-- <p class="body" style="font-size:28px">Arago làm thí nghiệm ngay: điểm sáng đó <b>có thật</b>.</p> -->
+          <div class="card tint-r" style="padding:18px 22px"><p style="font-size:24px;color:var(--ink)">Thuyết hạt của Newton chính thức bị khai tử.</p></div>
+          <a class="btn ghost" href="new1.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="new1.html" loading="lazy" title="Mô phỏng vết sáng Arago"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 2 · Arago</span><span class="mono">08 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 09 — MAXWELL / HERTZ + SIM
+     ============================================================ -->
+<section class="slide" data-title="1865–1888 · Sóng điện từ">
+  <div class="bg-grid"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow blue">Mốc 3 · 1865–1888</div><span class="pill blue">Thí nghiệm 03</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Ánh sáng là <em>sóng điện từ</em></h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <p class="body" style="font-size:28px"><b>1865 — Maxwell</b> hợp nhất điện học và từ học (kế thừa Faraday) thành hệ phương trình Maxwell, chứng minh ánh sáng là sóng điện từ.</p>
+          <p class="body" style="font-size:28px"><b>1888 — Hertz</b> làm thực nghiệm, 20 năm sau, xác nhận điều đó.</p>
+          <div class="card tint-b" style="padding:18px 22px"><p style="font-size:24px;color:var(--ink)">Lúc này phe sóng thắng gần như tuyệt đối: vật chất là hạt, ánh sáng là sóng.</p></div>
+          <a class="btn ghost" href="new3.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="new3.html" loading="lazy" title="Mô phỏng sóng điện từ Hertz"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 3 · Maxwell–Hertz</span><span class="mono">09 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 10 — ULTRAVIOLET CATASTROPHE
+     ============================================================ -->
+<section class="slide" data-title="1900 · Thảm họa cực tím">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow">Mốc 4 · Bài toán mở</div><span class="pill red">Thảm họa cực tím</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:70px">Vật lí cổ điển dự đoán<br>một <em>năng lượng vô hạn</em>.</h2>
+      <div class="split reveal d2" style="margin-top:20px;gap:46px;align-items:center">
+        <div class="diagram" style="padding:16px 18px">
+          <svg viewBox="0 0 660 370" style="width:100%;height:auto">
+            <g stroke="#e3dbc8" stroke-width="1">
+              <line x1="60" y1="60" x2="60" y2="310"/><line x1="60" y1="310" x2="620" y2="310"/>
+              <line x1="60" y1="240" x2="620" y2="240"/><line x1="60" y1="170" x2="620" y2="170"/><line x1="60" y1="100" x2="620" y2="100"/>
+            </g>
+            <path d="M60 300 C150 200 200 130 260 96 C330 60 420 40 620 26" fill="none" stroke="#dc4a2a" stroke-width="3.5" stroke-dasharray="8 6"/>
+            <path d="M60 305 C140 250 200 150 250 110 C300 78 360 88 430 140 C500 195 560 270 620 300" fill="none" stroke="#1f4fd8" stroke-width="4"/>
+            <text x="452" y="74" font-family="IBM Plex Mono, monospace" font-size="19" fill="#dc4a2a" paint-order="stroke" stroke="#fbf9f2" stroke-width="7" stroke-linejoin="round">Rayleigh–Jeans</text>
+            <text x="440" y="212" font-family="IBM Plex Mono, monospace" font-size="19" fill="#1f4fd8" paint-order="stroke" stroke="#fbf9f2" stroke-width="7" stroke-linejoin="round">thực nghiệm</text>
+            <text x="60" y="336" font-family="IBM Plex Mono, monospace" font-size="17" fill="#6c778c">bước sóng dài</text>
+            <text x="520" y="336" font-family="IBM Plex Mono, monospace" font-size="17" fill="#6c778c">cực tím</text>
+            <text x="14" y="72" font-family="IBM Plex Mono, monospace" font-size="17" fill="#6c778c">E</text>
+          </svg>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <p class="body" style="font-size:29px">Theo định luật Rayleigh–Jeans, khi bước sóng tiến về vùng cực tím, năng lượng bức xạ <b>tăng đến vô hạn</b>.</p>
+          <div class="card tint-r"><span class="num">ĐIỀU VÔ LÝ</span><p style="font-size:25px;color:var(--ink)">Một chiếc lò ở nhiệt độ phòng cũng phải phát ra năng lượng khổng lồ dạng tia cực tím — phá vỡ định luật bảo toàn năng lượng.</p></div>
+          <p class="body" style="font-size:26px">Thực nghiệm: năng lượng <b>giảm về gần 0</b>. Vật lí cổ điển bế tắc.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 4 · Thảm họa cực tím</span><span class="mono">10 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 11 — PLANCK
+     ============================================================ -->
+<section class="slide" data-title="1900 · Planck">
+  <div class="bg-grid"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow blue">Mốc 4 · 1900</div><span class="pill blue">Max Planck</span></div>
+    <div class="body-area split wide-l" style="gap:64px">
+      <div>
+        <h2 class="h reveal d1" style="font-size:72px">Năng lượng phát ra<br>theo từng <em>gói rời rạc</em>.</h2>
+        <div class="formula reveal d2" style="margin-top:26px;font-size:58px">E = hf</div>
+        <p class="lead reveal d3" style="margin-top:22px;font-size:30px;max-width:760px">Để cứu vãn toán học, Planck buộc phải giả định năng lượng không được phát ra liên tục như sóng, mà thành từng phần gọi là <b>lượng tử năng lượng</b>.</p>
+      </div>
+      <div class="reveal d2" style="display:flex;flex-direction:column;gap:18px">
+        <div class="kv"><dt>E</dt><dd>năng lượng một lượng tử</dd></div>
+        <div class="kv"><dt>h</dt><dd>hằng số Planck</dd></div>
+        <div class="kv"><dt>f</dt><dd>tần số bức xạ</dd></div>
+        <div class="card tint-g" style="margin-top:8px"><span class="num">LÚC ĐÓ, CHÍNH PLANCK…</span><p style="font-size:25px;color:var(--ink)">…coi đây chỉ là một “mẹo toán học”, chứ chưa tin bản chất ánh sáng là hạt.</p></div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 4 · Planck 1900</span><span class="mono">11 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 12 — EINSTEIN + SIM
+     ============================================================ -->
+<section class="slide" data-title="1905 · Einstein">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow red">Mốc 4 · 1905</div><span class="pill red">Thí nghiệm 04</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Einstein: ánh sáng thực sự là <em>hạt photon</em></h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <p class="body" style="font-size:28px">Einstein khẳng định ánh sáng bản chất là các hạt — gọi là <b>photon</b>.</p>
+          <p class="body" style="font-size:28px">Giả thuyết này giải thích hoàn hảo <b>hiện tượng quang điện</b>, nơi lý thuyết sóng hoàn toàn bất lực.</p>
+          <div class="card tint-r" style="padding:18px 22px"><p style="font-size:24px;color:var(--ink)">Đột ngột: ánh sáng vừa có tính sóng, vừa có tính hạt.</p></div>
+          <a class="btn ghost" href="quang-dien-einstein.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="quang-dien-einstein.html" loading="lazy" title="Mô phỏng hiệu ứng quang điện"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 4 · Einstein</span><span class="mono">12 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 14 — DE BROGLIE
+     ============================================================ -->
+<section class="slide" data-title="1924 · De Broglie">
+  <div class="bg-grid"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow teal">Mốc 5 · 1924</div><span class="pill teal">Sóng vật chất</span></div>
+    <div class="body-area split wide-l" style="gap:64px">
+      <div>
+        <h2 class="h reveal d1" style="font-size:72px">Nếu ánh sáng là hạt,<br>vật chất có thể là <em>sóng</em>?</h2>
+        <p class="lead reveal d2" style="margin-top:24px;font-size:30px">Louis de Broglie đảo ngược lập luận: ánh sáng — vốn tưởng là sóng — lại có tính hạt. Vậy tại sao electron, nguyên tử… lại không thể có tính sóng?</p>
+        <p class="body reveal d3" style="margin-top:18px;font-size:28px">Ban đầu, đây bị xem là lý thuyết viển vông trên giấy — vì de Broglie là nhà lý thuyết, chưa có thực nghiệm.</p>
+      </div>
+      <div class="reveal d2" style="display:flex;flex-direction:column;gap:18px;justify-content:center">
+        <div class="diagram" style="padding:26px">
+          <svg viewBox="0 0 620 300" style="width:100%;height:auto">
+            <text x="16" y="34" font-family="IBM Plex Mono, monospace" font-size="18" fill="#06665b">ÁNH SÁNG = SÓNG</text>
+            <path d="M16 76 Q46 34 76 76 T136 76 T196 76 T256 76 T316 76 T376 76 T436 76 T496 76 T556 76" fill="none" stroke="#0b8b7c" stroke-width="4"/>
+            <circle cx="30" cy="158" r="14" fill="#1f4fd8"/>
+            <text x="58" y="166" font-family="Be Vietnam Pro, sans-serif" font-size="24" fill="#3d4a63">lại có tính hạt → photon</text>
+            <circle cx="30" cy="240" r="14" fill="#dc4a2a"/>
+            <path d="M52 240 q20 -26 40 0 t40 0 t40 0 t40 0 t40 0" fill="none" stroke="#dc4a2a" stroke-width="3"/>
+            <text x="268" y="250" font-family="Be Vietnam Pro, sans-serif" font-size="24" fill="#3d4a63">vật chất → cũng có sóng</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 5 · De Broglie</span><span class="mono">14 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 15 — DAVISSON–GERMER + SIM
+     ============================================================ -->
+<section class="slide" data-title="1927 · Davisson–Germer">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow teal">Mốc 5 · 1927</div><span class="pill teal">Thí nghiệm 05</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Electron cũng tạo <em>vân nhiễu xạ</em></h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <p class="body" style="font-size:28px">Davisson và Germer bắn chùm electron qua tinh thể niken và phát hiện các vân nhiễu xạ <b>y hệt sóng ánh sáng</b>.</p>
+          <p class="body" style="font-size:28px">Sóng vật chất chính thức được thực nghiệm chứng minh.</p>
+          <div class="card tint-g" style="padding:18px 22px"><p style="font-size:24px;color:var(--ink)">Davisson nhận giải Nobel Vật lí năm 1937.</p></div>
+          <a class="btn ghost" href="new4.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="new4.html" loading="lazy" title="Mô phỏng Davisson–Germer"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 5 · Davisson–Germer</span><span class="mono">15 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 16 — SINGLE PARTICLE + SIM
+     ============================================================ -->
+<section class="slide" data-title="Khe kép từng hạt">
+  <div class="bg-grid fine"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow">Mốc 5 · Khe kép lượng tử</div><span class="pill">Thí nghiệm 06</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Bắn từng hạt. Vẫn ra <em>vân sóng</em>.</h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <p class="body" style="font-size:28px">Phóng từng electron rời rạc qua khe kép: mỗi hạt đến màn tại một điểm, nhưng hàng nghìn điểm xếp thành <b>vân giao thoa</b>.</p>
+          <p class="body" style="font-size:28px">Hạt tự giao thoa với chính mình — hạt vừa là sóng, sóng lại vừa là hạt.</p>
+          <a class="btn ghost" href="thi-nghiem-khe-kep.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="thi-nghiem-khe-kep.html" loading="lazy" title="Mô phỏng khe kép từng hạt"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Mốc 5 · Từng hạt</span><span class="mono">16 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 18 — REMARK 1
+     ============================================================ -->
+<section class="slide" data-title="Nhận xét 1 · Tư duy nhị nguyên">
+  <div class="bg-grid"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow blue">Nhận xét chung · 1</div><span class="pill blue">Tư duy nhị nguyên</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:72px">Ranh giới cổ điển<br>đã bị <em>xóa nhòa</em>.</h2>
+      <div class="reveal d2" style="margin-top:30px;display:flex;flex-direction:column;gap:0;border:1px solid var(--rule);border-radius:18px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:220px 1fr 1fr;background:var(--paper-3)">
+          <div style="padding:20px 26px;font-family:var(--mono);font-size:18px;letter-spacing:.1em;color:var(--ink-3)">QUAN NIỆM CŨ</div>
+          <div style="padding:20px 26px;font-size:25px;color:var(--ink-2)">Vật chất là <b>hạt</b> — cứng cáp, định vị rõ ràng</div>
+          <div style="padding:20px 26px;font-size:25px;color:var(--ink-2)">Ánh sáng, năng lượng là <b>sóng</b> — lan truyền, mềm mại</div>
+        </div>
+        <div style="display:grid;grid-template-columns:220px 1fr;background:#eef2ff;border-top:1px solid var(--rule)">
+          <div style="padding:24px 26px;font-family:var(--mono);font-size:18px;letter-spacing:.1em;color:#173a9e">SAU BÀI HỌC</div>
+          <div style="padding:24px 26px;font-size:28px;color:var(--ink)">Không có phe nào thắng tuyệt đối. Mọi thực thể — từ electron đến ánh sáng — đều mang <b>bản chất kép: vừa sóng, vừa hạt</b>.</div>
+        </div>
+      </div>
+      <p class="lead reveal d3" style="margin-top:30px;font-size:30px">Vũ trụ vi mô không chọn một phía; nó bao hàm cả hai.</p>
+    </div>
+    <div class="slide-foot"><span>Nhận xét 1</span><span class="mono">18 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 18 — COMPLEMENTARITY (BOHR)
+     ============================================================ -->
+<section class="slide" data-title="Nguyên lý bổ sung · Bohr">
+  <div class="bg-grid fine"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow blue">Mốc 5 · Triết lý lượng tử</div><span class="pill blue">Niels Bohr</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:68px">“Sóng hay hạt?” — câu hỏi <em>sai</em>.</h2>
+      <div class="split reveal d2" style="grid-template-columns:1.1fr .9fr;gap:44px;margin-top:22px;align-items:center">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="card tint-r" style="padding:22px 26px">
+            <span class="num">BẪY TƯ DUY NHỊ NGUYÊN</span>
+            <p style="font-size:27px">Ta quen nghĩ “hoặc cái này, hoặc cái kia” — đúng/sai, trắng/đen. Tự nhiên lượng tử từ chối logic nhị phân đó.</p>
+          </div>
+          <div class="card tint-b" style="padding:22px 26px">
+            <span class="num">NGUYÊN LÝ BỔ SUNG · NIELS BOHR</span>
+            <p style="font-size:27px">Sóng và hạt <b>không loại trừ</b> nhau mà <b>bổ sung</b> cho nhau. Tùy cách ta đo, mặt này hay mặt kia lộ ra — nhưng không bao giờ cùng lúc.</p>
+          </div>
+        </div>
+        <div class="diagram reveal d3" style="padding:18px 18px 10px">
+          <svg viewBox="0 0 560 540" style="width:100%;height:auto">
+            <!-- cylinder -->
+            <ellipse cx="280" cy="76" rx="120" ry="34" fill="#e8eefc" stroke="#1f4fd8" stroke-width="2.5"/>
+            <path d="M160 76 L160 158 A120 34 0 0 0 400 158 L400 76" fill="#f2f5fd" stroke="#1f4fd8" stroke-width="2.5"/>
+            <path d="M160 158 A120 34 0 0 0 400 158" fill="none" stroke="#1f4fd8" stroke-width="2.5"/>
+            <text x="280" y="222" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="18" fill="#6c778c">MỘT VẬT THỂ</text>
+
+            <!-- arrows -->
+            <line x1="200" y1="160" x2="120" y2="290" stroke="#c4b9a0" stroke-width="2" stroke-dasharray="7 6"/>
+            <line x1="380" y1="160" x2="450" y2="290" stroke="#c4b9a0" stroke-width="2" stroke-dasharray="7 6"/>
+
+            <!-- top view: circle -->
+            <circle cx="118" cy="360" r="62" fill="#eef2ff" stroke="#1f4fd8" stroke-width="2.5"/>
+            <text x="118" y="452" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="17" fill="#1f4fd8">HÌNH TRÒN</text>
+            <text x="118" y="478" text-anchor="middle" font-family="Be Vietnam Pro, sans-serif" font-size="19" fill="#3d4a63">nhìn từ trên xuống</text>
+            <text x="118" y="504" text-anchor="middle" font-family="Be Vietnam Pro, sans-serif" font-size="19" fill="#14213d" font-weight="600">→ tính hạt</text>
+
+            <!-- side view: rectangle -->
+            <rect x="352" y="298" width="180" height="124" rx="8" fill="#e6f5f2" stroke="#0b8b7c" stroke-width="2.5"/>
+            <text x="442" y="452" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="17" fill="#0b8b7c">HÌNH CHỮ NHẬT</text>
+            <text x="442" y="478" text-anchor="middle" font-family="Be Vietnam Pro, sans-serif" font-size="19" fill="#3d4a63">nhìn từ ngang sang</text>
+            <text x="442" y="504" text-anchor="middle" font-family="Be Vietnam Pro, sans-serif" font-size="19" fill="#14213d" font-weight="600">→ tính sóng</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Nguyên lý bổ sung</span><span class="mono">18 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 21 — APPLICATION 1
+     ============================================================ -->
+<section class="slide" data-title="Ứng dụng 1 · Cảm biến ảnh">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow blue">Ứng dụng · 01</div><span class="pill blue">CMOS / CCD</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Mỗi bức ảnh là một <em>cuộc đếm photon</em></h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <!-- <p class="body" style="font-size:28px">Mỗi lần chụp ảnh, hàng nghìn tỉ photon từ khung cảnh bay vào ống kính, đập vào cảm biến silicon và <b>bật electron</b> ra để “đếm” sáng tối.</p> -->
+          <div class="card tint-b" style="padding:18px 22px"><p style="font-size:24px;color:var(--ink)">Không có tính hạt của ánh sáng, chiếc smartphone sẽ “mù” hoàn toàn.</p></div>
+          <a class="btn ghost" href="cam-bien-anh-ccd-cmos.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="cam-bien-anh-ccd-cmos.html" loading="lazy" title="Mô phỏng cảm biến ảnh CMOS CCD"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Ứng dụng 1</span><span class="mono">21 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 22 — APPLICATION 2
+     ============================================================ -->
+<section class="slide" data-title="Ứng dụng 2 · Pin mặt trời">
+  <div class="bg-grid"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow gold">Ứng dụng · 02</div><span class="pill gold">Pin năng lượng mặt trời</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Photon “đẩy” electron<br>thành <em>dòng điện</em></h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <p class="body" style="font-size:28px">Ánh sáng mặt trời chiếu vào tấm pin không chỉ làm ấm vật thể. Từng photon đóng vai những “viên đạn” năng lượng, truyền trực tiếp cho electron.</p>
+          <!-- <p class="body" style="font-size:28px">Dòng electron đó thắp sáng bóng đèn nhà bạn.</p> -->
+          <a class="btn ghost" href="pin-nang-luong-mat-troi.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="pin-nang-luong-mat-troi.html" loading="lazy" title="Mô phỏng pin năng lượng mặt trời"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Ứng dụng 2</span><span class="mono">22 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 23 — APPLICATION 3
+     ============================================================ -->
+<section class="slide" data-title="Ứng dụng 3 · Kính hiển vi điện tử">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow teal">Ứng dụng · 03</div><span class="pill teal">Kính hiển vi điện tử</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Nhìn thứ <em>nhỏ hơn ánh sáng</em></h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <!-- <p class="body" style="font-size:28px">Ánh sáng thông thường có bước sóng quá dài nên không thể “nhìn thấy” virus.</p> -->
+          <p class="body" style="font-size:28px">Chùm electron vừa là hạt vừa dao động như sóng cực ngắn, nên vượt qua giới hạn đó và phóng đại hình ảnh lên hàng triệu lần.</p>
+          <a class="btn ghost" href="kinh-hien-vi-dien-tu-tem-sem.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="kinh-hien-vi-dien-tu-tem-sem.html" loading="lazy" title="Mô phỏng kính hiển vi điện tử"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Ứng dụng 3</span><span class="mono">23 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 24 — APPLICATION 4
+     ============================================================ -->
+<section class="slide" data-title="Ứng dụng 4 · Tia X">
+  <div class="bg-grid"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow red">Ứng dụng · 04</div><span class="pill red">Tia X</span></div>
+    <div class="body-area">
+      <h2 class="h reveal d1" style="font-size:62px">Xuyên qua thịt,<br>dừng lại ở <em>xương</em></h2>
+      <div class="split reveal d2" style="grid-template-columns:540px 1fr;gap:40px;margin-top:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <!-- <p class="body" style="font-size:28px">Khi khám nghi gãy xương, hay khi vali qua cửa an ninh sân bay, máy quét dùng tia X.</p> -->
+          <p class="body" style="font-size:28px">Tia X vừa đủ khả năng <b>đâm xuyên</b> qua da thịt, vải; vừa bị <b>cản lại</b> bởi xương, kim loại — in lên phim trắng đen.</p>
+          <a class="btn ghost" href="new11.html" target="_blank" style="align-self:flex-start">Mở mô phỏng toàn màn hình ↗</a>
+        </div>
+        <div class="embed" style="height:660px">
+          <iframe src="new11.html" loading="lazy" title="Mô phỏng máy X-quang y tế"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Ứng dụng 4</span><span class="mono">24 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 25 — QUIZ 1
+     ============================================================ -->
+<section class="slide" data-title="Quiz 1">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow">Kiểm tra nhanh</div><span class="pill blue">Câu 1 / 5</span></div>
+    <div class="body-area quiz-body">
+      <h2 class="h reveal d1" style="font-size:62px;max-width:1560px">Thí nghiệm nào là bằng chứng trực tiếp cho <em>tính sóng</em> của ánh sáng?</h2>
+      <div class="choices grid2 reveal d2" style="margin-top:34px" data-quiz="qz1">
+        <button class="choice" data-ok="0"><span class="key">A</span> Lăng kính của Newton</button>
+        <button class="choice" data-ok="1"><span class="key">B</span> Khe đôi của Young</button>
+        <button class="choice" data-ok="0"><span class="key">C</span> Hiệu ứng quang điện</button>
+        <button class="choice" data-ok="0"><span class="key">D</span> Thí nghiệm Davisson–Germer</button>
+      </div>
+      <div class="answer-box">
+        <div class="ans-head"><span class="ans-verdict">Đáp án</span><span class="ans-key">B — Khe đôi của Young</span></div>
+        <p class="ans-text">Chỉ giao thoa mới tạo ra vân sáng – tối xen kẽ, và hiện tượng này chỉ giải thích được khi ánh sáng là sóng. Lăng kính chỉ chứng minh ánh sáng trắng là hỗn hợp màu; quang điện chứng minh tính hạt; Davisson–Germer chứng minh tính sóng của electron, không phải ánh sáng.</p>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Quiz 01</span><span class="mono">25 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 26 — QUIZ 2
+     ============================================================ -->
+<section class="slide" data-title="Quiz 2">
+  <div class="bg-grid"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow">Kiểm tra nhanh</div><span class="pill red">Câu 2 / 5</span></div>
+    <div class="body-area quiz-body">
+      <h2 class="h reveal d1" style="font-size:62px;max-width:1560px">Thí nghiệm lăng kính của Newton (1670–1672) thực sự chứng minh điều gì?</h2>
+      <div class="choices grid2 reveal d2" style="margin-top:34px" data-quiz="qz2">
+        <button class="choice" data-ok="0"><span class="key">A</span> Ánh sáng là dòng hạt</button>
+        <button class="choice" data-ok="1"><span class="key">B</span> Ánh sáng trắng là hỗn hợp các màu</button>
+        <button class="choice" data-ok="0"><span class="key">C</span> Ánh sáng truyền nhanh hơn trong nước</button>
+        <button class="choice" data-ok="0"><span class="key">D</span> Ánh sáng là sóng điện từ</button>
+      </div>
+      <div class="answer-box">
+        <div class="ans-head"><span class="ans-verdict">Đáp án</span><span class="ans-key">B — Ánh sáng trắng là hỗn hợp các màu</span></div>
+        <p class="ans-text">Thí nghiệm tán sắc chứng minh ánh sáng trắng gồm nhiều màu, nhưng <b>không</b> chứng minh ánh sáng là hạt: mô hình sóng cũng giải thích được tán sắc. Đây là điểm cần phân biệt rõ để không hiểu sai về Newton.</p>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Quiz 02</span><span class="mono">26 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 27 — QUIZ 3
+     ============================================================ -->
+<section class="slide" data-title="Quiz 3">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow">Kiểm tra nhanh</div><span class="pill gold">Câu 3 / 5</span></div>
+    <div class="body-area quiz-body">
+      <h2 class="h reveal d1" style="font-size:62px;max-width:1560px">Planck (1900) buộc phải giả định năng lượng bức xạ được phát ra như thế nào?</h2>
+      <div class="choices grid2 reveal d2" style="margin-top:34px" data-quiz="qz3">
+        <button class="choice" data-ok="0"><span class="key">A</span> Liên tục, như một dòng sóng</button>
+        <button class="choice" data-ok="1"><span class="key">B</span> Thành từng gói rời rạc, E = hf</button>
+        <button class="choice" data-ok="0"><span class="key">C</span> Chỉ khi bước sóng về vô hạn</button>
+        <button class="choice" data-ok="0"><span class="key">D</span> Theo quỹ đạo cố định của electron</button>
+      </div>
+      <div class="answer-box">
+        <div class="ans-head"><span class="ans-verdict">Đáp án</span><span class="ans-key">B — Từng gói rời rạc</span></div>
+        <p class="ans-text">Đó là giả định lượng tử E = hf, dùng để tránh kết quả năng lượng vô hạn của định luật Rayleigh–Jeans. Chính Planck lúc đầu chỉ coi đây là “mẹo toán học”, chưa tin bản chất ánh sáng là hạt.</p>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Quiz 03</span><span class="mono">27 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 28 — QUIZ 4
+     ============================================================ -->
+<section class="slide" data-title="Quiz 4">
+  <div class="bg-grid"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow">Kiểm tra nhanh</div><span class="pill teal">Câu 4 / 5</span></div>
+    <div class="body-area quiz-body">
+      <h2 class="h reveal d1" style="font-size:62px;max-width:1560px">Einstein (1905) giải thích hiện tượng quang điện bằng cách coi ánh sáng là gì?</h2>
+      <div class="choices grid2 reveal d2" style="margin-top:34px" data-quiz="qz4">
+        <button class="choice" data-ok="0"><span class="key">A</span> Sóng điện từ lan truyền liên tục</button>
+        <button class="choice" data-ok="1"><span class="key">B</span> Các hạt photon mang năng lượng hf</button>
+        <button class="choice" data-ok="0"><span class="key">C</span> Sóng dừng trong chân không</button>
+        <button class="choice" data-ok="0"><span class="key">D</span> Dòng electron bật ra từ kim loại</button>
+      </div>
+      <div class="answer-box">
+        <div class="ans-head"><span class="ans-verdict">Đáp án</span><span class="ans-key">B — Các hạt photon</span></div>
+        <p class="ans-text">Einstein khẳng định ánh sáng bản chất là các hạt photon. Giả thuyết này giải thích hoàn hảo hiện tượng quang điện, nơi lý thuyết sóng hoàn toàn bất lực — và đưa tính hạt trở lại.</p>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Quiz 04</span><span class="mono">28 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 29 — QUIZ 5
+     ============================================================ -->
+<section class="slide" data-title="Quiz 5">
+  <div class="bg-dots"></div>
+  <div class="pad">
+    <div class="slide-head"><div class="eyebrow">Kiểm tra nhanh</div><span class="pill violet">Câu 5 / 5</span></div>
+    <div class="body-area quiz-body">
+      <h2 class="h reveal d1" style="font-size:60px;max-width:1620px">Trong thí nghiệm khe kép với từng electron, khi lắp đầu dò để biết hạt qua khe nào, điều gì xảy ra?</h2>
+      <div class="choices grid2 reveal d2" style="margin-top:30px" data-quiz="qz5">
+        <button class="choice" data-ok="0"><span class="key">A</span> Vân giao thoa rõ nét hơn</button>
+        <button class="choice" data-ok="0"><span class="key">B</span> Vân dịch chuyển sang một bên</button>
+        <button class="choice" data-ok="1"><span class="key">C</span> Hàm sóng sụp đổ, chỉ còn hai vạch</button>
+        <button class="choice" data-ok="0"><span class="key">D</span> Không có gì thay đổi</button>
+      </div>
+      <div class="answer-box">
+        <div class="ans-head"><span class="ans-verdict">Đáp án</span><span class="ans-key">C — Hàm sóng sụp đổ</span></div>
+        <p class="ans-text">Ngay khoảnh khắc bị “nhìn trộm”, hàm sóng sụp đổ. Các hạt từ bỏ hình hài sóng và rơi thành hai vạch thẳng tắp như những viên bi cổ điển. Sự quan sát đã thay đổi thực tại.</p>
+      </div>
+    </div>
+    <div class="slide-foot"><span>Quiz 05</span><span class="mono">29 / 27</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 30 — THANK YOU
+     ============================================================ -->
+<section class="slide" data-title="Cảm ơn">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <span class="corner-mark cm-tl"></span><span class="corner-mark cm-tr"></span><span class="corner-mark cm-bl"></span><span class="corner-mark cm-br"></span>
+  <div class="pad" style="justify-content:center">
+    <div class="eyebrow reveal d1">Bài 10 · Lưỡng tính sóng – hạt</div>
+    <h1 class="display reveal d2" style="font-size:120px;line-height:1.18;margin:24px 0 12px">Cảm ơn thầy<br>và các bạn đã <em>lắng nghe</em>.</h1>
+    <p class="lead reveal d3" style="max-width:980px;margin-top:12px">Mong nhận được câu hỏi và góp ý của thầy cô và các bạn để bài trình bày được hoàn thiện hơn.</p>
+    <div class="reveal d4" style="margin-top:36px;display:flex;gap:14px">
+      <span class="pill">Nhấn O để xem tổng quan</span>
+      <span class="pill">Nhấn M để bật/tắt âm thanh</span>
+      <span class="pill">Nhấn F để toàn màn hình</span>
+    </div>
+  </div>
+  <div class="slide-foot"><span>Kết thúc</span><span class="mono">30 / 27</span></div>
+</section>
+</main>
+</div>
+
+<div class="progress"><div class="bar" id="progressBar"></div></div>
+<div class="deck-controls">
+  <button class="ctl" id="btnPrev" aria-label="Trang trước"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <span class="counter" id="counter"><b>01</b> / 27</span>
+  <button class="ctl" id="btnNext" aria-label="Trang sau"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+  <button class="ctl" id="btnSound" aria-label="Bật/tắt âm thanh" title="Âm thanh (M)">
+    <svg class="snd-on" viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M18 6a9 9 0 010 12"/></svg>
+    <svg class="snd-off" viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M17 9l4 6M21 9l-4 6"/></svg>
+  </button>
+  <button class="ctl" id="btnOverview" aria-label="Tổng quan" title="Tổng quan (O)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
+  <button class="ctl" id="btnFull" aria-label="Toàn màn hình" title="Toàn màn hình (F)"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/></svg></button>
+</div>
+
+<div class="overview" id="overview">
+  <h2>Tổng quan bài thuyết trình</h2>
+  <p class="hint">Bấm vào slide để chuyển tới · O hoặc Esc để đóng</p>
+  <div class="ov-grid" id="ovGrid"></div>
+</div>
+
+<div class="edit-hotzone"></div>
+<button class="edit-toggle" id="editToggle" title="Chế độ chỉnh sửa (E)">✏</button>
+
+<script>
+/* ============================================================
+   00 · UTILITIES
+   ============================================================ */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp  = (a, b, t) => a + (b - a) * t;
+const fmt = (v, d = 2) => v.toFixed(d).replace('.', ',');
+const SUPS = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+function sup(n){ return String(n).split('').map(c => SUPS[c] || c).join(''); }
+function sci(v, d = 2){
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0';
+  let e = Math.floor(Math.log10(Math.abs(v)));
+  let m = v / Math.pow(10, e);
+  if (Math.abs(m) >= 9.995) { m /= 10; e++; }
+  return m.toFixed(d).replace('.', ',') + '·10' + sup(e);
+}
+function rr(c, x, y, w, h, r){
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+function wlColor(w, a = 1){
+  let r = 0, g = 0, b = 0;
+  if (w >= 380 && w < 440) { r = -(w - 440) / 60; b = 1; }
+  else if (w < 490) { g = (w - 440) / 50; b = 1; }
+  else if (w < 510) { g = 1; b = -(w - 510) / 20; }
+  else if (w < 580) { r = (w - 510) / 70; g = 1; }
+  else if (w < 645) { r = 1; g = -(w - 645) / 65; }
+  else if (w <= 780) { r = 1; }
+  let f = 1;
+  if (w > 700) f = .35 + .65 * (780 - w) / 80;
+  if (w < 430) f = .45 + .55 * (w - 380) / 50;
+  return `rgba(${Math.round(255 * r * f)},${Math.round(255 * g * f)},${Math.round(255 * b * f)},${a})`;
+}
+function glow(c, x, y, r, color){
+  const g = c.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, color);
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = g;
+  c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+}
+
+/* ============================================================
+   01 · SOUND ENGINE — synthesized, no external audio files
+   ============================================================ */
+const Sound = {
+  ctx: null,
+  muted: (() => { try { return localStorage.getItem('ltsh-muted') === '1'; } catch (e) { return false; } })(),
+  init(){
+    if (this.ctx) return;
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  },
+  resume(){ this.init(); if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  tone(freq, dur = .12, type = 'sine', vol = .05, slideTo = null, delay = 0){
+    if (this.muted) return;
+    this.init(); const c = this.ctx; if (!c) return;
+    const t0 = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + .012);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t0); o.stop(t0 + dur + .03);
+  },
+  noise(dur = .2, vol = .04, freq = 1200, q = 1){
+    if (this.muted) return;
+    this.init(); const c = this.ctx; if (!c) return;
+    const len = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = q;
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + dur);
+    src.connect(bp); bp.connect(g); g.connect(c.destination);
+    src.start();
+  },
+  nav(){ if (this.muted) return; this.noise(.18, .03, 950, 1.2); this.tone(300, .14, 'sine', .022, 210); },
+  ping(){ this.tone(1250, .07, 'sine', .045); },
+  ok(){ this.tone(660, .12, 'triangle', .05); this.tone(990, .2, 'triangle', .04, null, .11); },
+  bad(){ this.tone(150, .2, 'sawtooth', .035, 105); },
+  click(){ this.tone(880, .04, 'square', .018); },
+  shutter(){ this.noise(.09, .08, 2600, 2); this.tone(170, .06, 'square', .025); },
+  beep(){ this.tone(460, .07, 'square', .025); },
+  power(){ this.tone(220, .35, 'sine', .05, 660); }
+};
+document.body.classList.add(Sound.muted ? 'sound-off' : 'sound-on');
+const enableAudio = () => { Sound.resume(); };
+window.addEventListener('pointerdown', enableAudio, { once: true });
+window.addEventListener('keydown', enableAudio, { once: true });
+
+/* ============================================================
+   02 · SIMULATION REGISTRY
+   ============================================================ */
+const Sim = {
+  list: [],
+  reg(id, draw, slideEl){
+    const c = document.getElementById(id);
+    if (!c) return null;
+    const ctx = c.getContext('2d');
+    const s = { c, ctx, draw, slide: slideEl || c.closest('.slide'), active: false, t: 0 };
+    this.list.push(s);
+    return s;
+  },
+  setSlide(sl){ this.list.forEach(s => { s.active = (s.slide === sl); }); }
+};
+let _last = performance.now();
+function _loop(now){
+  const dt = Math.min(.05, (now - _last) / 1000); _last = now;
+  for (const s of Sim.list){
+    if (!s.active) continue;
+    s.t += dt;
+    try { s.draw(s, dt); } catch (e) { /* keep the deck alive */ }
+  }
+  requestAnimationFrame(_loop);
+}
+
+/* ============================================================
+   03 · SLIDE PRESENTATION CONTROLLER
+   ============================================================ */
+class SlidePresentation {
+  constructor(){
+    this.slides = $$('.slide');
+    this.stage = $('#deckStage');
+    this.i = 0;
+    this.locked = false;
+    this.scale();
+    window.addEventListener('resize', () => this.scale());
+    this.bind();
+    this.buildOverview();
+    this.fixFooters();
+    const m = /#slide-(\d+)/.exec(location.hash);
+    const start = m ? clamp(+m[1] - 1, 0, this.slides.length - 1) : 0;
+    this.show(start, true);
+    requestAnimationFrame(_loop);
+  }
+  scale(){
+    const f = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    const x = (window.innerWidth - 1920 * f) / 2;
+    const y = (window.innerHeight - 1080 * f) / 2;
+    this.stage.style.transform = `translate(${x}px,${y}px) scale(${f})`;
+  }
+  show(n, instant = false){
+    n = clamp(n, 0, this.slides.length - 1);
+    this.i = n;
+    this.slides.forEach((s, k) => {
+      s.classList.toggle('active', k === n);
+      s.classList.remove('visible');
+    });
+    const cur = this.slides[n];
+    void cur.offsetWidth;          /* force reflow so reveal transitions restart */
+    cur.classList.add('visible');
+    const total = this.slides.length;
+    $('#counter').innerHTML = `<b>${String(n + 1).padStart(2, '0')}</b> / ${total}`;
+    $('#progressBar').style.width = ((n + 1) / total * 100) + '%';
+    $$('#ovGrid .ov-item').forEach((el, k) => el.classList.toggle('cur', k === n));
+    Sim.setSlide(this.slides[n]);
+    try { history.replaceState(null, '', '#slide-' + (n + 1)); } catch (e) {}
+    if (!instant) Sound.nav();
+  }
+  next(){ this.show(this.i + 1); }
+  prev(){ this.show(this.i - 1); }
+  bind(){
+    $('#btnNext').addEventListener('click', () => this.next());
+    $('#btnPrev').addEventListener('click', () => this.prev());
+    $('#btnOverview').addEventListener('click', () => toggleOverview());
+    $('#btnFull').addEventListener('click', () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    });
+    $('#btnSound').addEventListener('click', () => toggleSound());
+
+    document.addEventListener('keydown', e => {
+      if (e.target.isContentEditable) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      switch (e.key) {
+        case 'ArrowRight': case 'PageDown': case ' ': e.preventDefault(); this.next(); break;
+        case 'ArrowLeft': case 'PageUp': e.preventDefault(); this.prev(); break;
+        case 'Home': e.preventDefault(); this.show(0); break;
+        case 'End': e.preventDefault(); this.show(this.slides.length - 1); break;
+        case 'f': case 'F': $('#btnFull').click(); break;
+        case 'm': case 'M': toggleSound(); break;
+        case 'o': case 'O': toggleOverview(); break;
+        case 'e': case 'E': toggleEdit(); break;
+        case 'Escape': if ($('#overview').classList.contains('show')) toggleOverview(); break;
+      }
+    });
+
+    let wheelLock = 0;
+    window.addEventListener('wheel', e => {
+      if ($('#overview').classList.contains('show') || document.body.classList.contains('edit-mode')) return;
+      const now = Date.now();
+      if (now - wheelLock < 850) return;
+      if (Math.abs(e.deltaY) < 24) return;
+      wheelLock = now;
+      e.deltaY > 0 ? this.next() : this.prev();
+    }, { passive: true });
+
+    let tx = 0, ty = 0, tracking = false;
+    window.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      tx = e.touches[0].clientX; ty = e.touches[0].clientY; tracking = true;
+    }, { passive: true });
+    window.addEventListener('touchend', e => {
+      if (!tracking || !e.changedTouches.length) return;
+      tracking = false;
+      const dx = e.changedTouches[0].clientX - tx;
+      const dy = e.changedTouches[0].clientY - ty;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 55) return;
+      if (Math.abs(dx) > Math.abs(dy)) { dx < 0 ? this.next() : this.prev(); }
+      else { dy < 0 ? this.next() : this.prev(); }
+    }, { passive: true });
+  }
+  buildOverview(){
+    const grid = $('#ovGrid');
+    grid.innerHTML = this.slides.map((s, k) =>
+      `<button class="ov-item" data-go="${k}"><b>${String(k + 1).padStart(2, '0')}</b><span>${s.dataset.title || 'Slide'}</span></button>`
+    ).join('');
+    grid.addEventListener('click', e => {
+      const b = e.target.closest('[data-go]');
+      if (!b) return;
+      toggleOverview(false);
+      this.show(+b.dataset.go);
+    });
+  }
+  fixFooters(){
+    const total = this.slides.length;
+    this.slides.forEach((s, k) => {
+      const f = s.querySelector('.slide-foot span:last-child');
+      if (!f) return;
+      f.textContent = f.textContent.replace(/^\s*\d+\s*\/\s*\d+/, String(k + 1).padStart(2, '0') + ' / ' + total);
+    });
+  }
+}
+const deck = new SlidePresentation();
+
+function toggleOverview(force){
+  const ov = $('#overview');
+  const show = force === undefined ? !ov.classList.contains('show') : force;
+  ov.classList.toggle('show', show);
+  if (show) Sound.ping();
+}
+function toggleSound(){
+  Sound.muted = !Sound.muted;
+  try { localStorage.setItem('ltsh-muted', Sound.muted ? '1' : '0'); } catch (e) {}
+  document.body.classList.toggle('sound-on', !Sound.muted);
+  document.body.classList.toggle('sound-off', Sound.muted);
+  if (!Sound.muted) { Sound.resume(); Sound.ok(); }
+}
+function toggleEdit(){
+  const active = !document.body.classList.contains('edit-mode');
+  document.body.classList.toggle('edit-mode', active);
+  document.querySelectorAll('.slide h1, .slide h2, .slide h3, .slide p, .slide li').forEach(el => {
+    el.setAttribute('contenteditable', active ? 'true' : 'false');
+  });
+  const btn = $('#editToggle');
+  btn.classList.toggle('active', active);
+  if (active) { Sound.ping(); }
+}
+$('#editToggle').addEventListener('click', toggleEdit);
+const hotzone = $('.edit-hotzone'), editToggle = $('#editToggle');
+let hideT = null;
+hotzone.addEventListener('mouseenter', () => { clearTimeout(hideT); editToggle.classList.add('show'); });
+hotzone.addEventListener('mouseleave', () => { hideT = setTimeout(() => { if (!document.body.classList.contains('edit-mode')) editToggle.classList.remove('show'); }, 400); });
+editToggle.addEventListener('mouseenter', () => clearTimeout(hideT));
+editToggle.addEventListener('mouseleave', () => { hideT = setTimeout(() => { if (!document.body.classList.contains('edit-mode')) editToggle.classList.remove('show'); }, 400); });
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+    e.preventDefault();
+    const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    a.download = 'luong-tinh-song-hat.html';
+    a.click();
+    Sound.ok();
+  }
+});
+
+/* click feedback for generic controls */
+document.addEventListener('click', e => {
+  if (e.target.closest('.btn, .ctl, .choice, .ov-item, .tl-item, a.card')) Sound.click();
+});
+
+/* ============================================================
+   23 · QUIZZES — answer + explanation, no hints
+   ============================================================ */
+$$('[data-quiz]').forEach(q => {
+  const body = q.closest('.quiz-body') || q.parentElement;
+  const box = body.querySelector('.answer-box');
+  const verdict = box?.querySelector('.ans-verdict');
+  q.querySelectorAll('.choice').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (q.dataset.done) return;
+      q.dataset.done = '1';
+      q.classList.add('answered');
+      const ok = btn.dataset.ok === '1';
+      if (ok) { btn.classList.add('correct'); Sound.ok(); }
+      else {
+        btn.classList.add('wrong');
+        q.querySelectorAll('[data-ok="1"]').forEach(b => b.classList.add('correct'));
+        Sound.bad();
+      }
+      if (box){
+        box.classList.add('show');
+        box.classList.toggle('bad', !ok);
+        if (verdict) verdict.textContent = ok ? 'Chính xác' : 'Chưa đúng';
+      }
+    });
+  });
+});
+
+/* ============================================================
+   25 · BOOT
+   ============================================================ */
+Sim.setSlide($('.slide.active'));
+setTimeout(() => { Sound.resume(); }, 400);
+window.deck = deck;
+window.Sim = Sim;
+window.Sound = Sound;
+</script>
+</body>
+</html>

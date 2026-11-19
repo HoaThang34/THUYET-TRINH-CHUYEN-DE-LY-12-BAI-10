@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô phỏng Thí nghiệm Giao thoa khe Young (1801) – Phòng thí nghiệm Quang học</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #04060b;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        /* Thanh trượt quang học tùy chỉnh */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--thumb-color, #38bdf8);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 12px var(--thumb-color, rgba(56, 189, 248, 0.85));
+            border: 2px solid #ffffff;
+            transition: transform 0.12s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.18);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 999px;
+        }
+        #lambdaSlider::-webkit-slider-runnable-track {
+            background: linear-gradient(90deg, 
+                #7c3aed 0%, 
+                #3b82f6 20%, 
+                #06b6d4 35%, 
+                #10b981 50%, 
+                #eab308 68%, 
+                #f97316 82%, 
+                #ef4444 100%
+            );
+        }
+        .glass-panel {
+            background: rgba(11, 17, 30, 0.84);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(51, 65, 85, 0.55);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-200">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800/80 bg-[#070b14]/90 sticky top-0 z-30 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 text-[11px] font-mono font-semibold uppercase tracking-wider rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                            Phòng thí nghiệm Quang học Sóng
+                        </span>
+                        <span class="text-xs text-slate-400 font-mono">Thomas Young (1801)</span>
+                    </div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white mt-0.5">
+                        Thí nghiệm Giao thoa khe Young: <span class="bg-gradient-to-r from-emerald-400 via-cyan-300 to-sky-400 bg-clip-text text-transparent"></span>
+                    </h1>
+                </div>
+
+                <!-- Các nút thao tác nhanh: Bật/Tắt Laser, Che khe S2, Reset -->
+                <div class="flex flex-wrap items-center gap-2 self-start md:self-center">
+                    <button id="btnLaserPower" class="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-lg active:scale-95 bg-emerald-500 text-slate-950 shadow-emerald-500/25">
+                        <span id="laserLed" class="w-2 h-2 rounded-full bg-slate-950 animate-ping"></span>
+                        <span id="laserPowerText">LASER: BẬT</span>
+                    </button>
+
+                    <button id="btnCoverSlit2" class="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-slate-700">
+                        <span id="slit2Icon" class="w-2 h-2 rounded-full bg-sky-400"></span>
+                        <span id="slit2Text">Che 1 khe (S2): MỞ</span>
+                    </button>
+
+                    <button id="btnReset" class="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs sm:text-sm font-medium transition active:scale-95">
+                        Đặt lại
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Lab Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
+
+        <!-- Khung mô phỏng chính: Góc nhìn Bàn thí nghiệm truyền sóng + Cận cảnh Màn hứng & Đồ thị I(x) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+            <!-- Cột trái (7/12): Góc nhìn chính - Bàn quang học & Truyền sóng giao thoa 2D/3D -->
+            <div class="lg:col-span-7 glass-panel rounded-2xl p-4 flex flex-col justify-between shadow-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                    <div>
+                        <h2 class="text-sm sm:text-base font-semibold text-white flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                            Bàn quang học: Truyền sóng kết hợp & Giao thoa S1–S2
+                        </h2>
+                        <p class="text-xs text-slate-400">Laser → Khe sơ cấp S₀ → Hai khe S₁, S₂ → Giao thoa tới màn hứng</p>
+                    </div>
+
+                    <!-- Chuyển đổi so sánh trực tiếp: Quang học Sóng vs Thuyết Hạt cổ điển -->
+                    <div class="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+                        <button id="btnWaveMode" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-sky-500 text-slate-950 shadow">
+                            Quang học Sóng (Young 1801)
+                        </button>
+                        <button id="btnParticleMode" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white">
+                            Thuyết Hạt (Newton)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Canvas Bàn quang học & Trường sóng giao thoa -->
+                <div class="relative w-full h-[360px] sm:h-[420px] rounded-xl overflow-hidden border border-slate-800 bg-[#03050a]">
+                    <canvas id="benchCanvas" class="w-full h-full block"></canvas>
+
+                    <!-- HUD thông số khoảng vân & trạng thái -->
+                    <div class="absolute top-3 left-3 flex flex-wrap gap-2 pointer-events-none">
+                        <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-slate-800 backdrop-blur-md text-[11px] font-mono">
+                            <span class="text-slate-400">Khoảng vân i = λD/a:</span>
+                            <span id="hudFringeWidth" class="text-emerald-400 font-bold ml-1">1.33 mm</span>
+                        </div>
+                        <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-slate-800 backdrop-blur-md text-[11px] font-mono">
+                            <span class="text-slate-400">Khe hở:</span>
+                            <span id="hudSlitState" class="text-sky-400 font-bold ml-1">2 KHE (S₁ & S₂)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột phải (5/12): Cận cảnh Màn hứng trực diện & Đồ thị cường độ sáng I(x) -->
+            <div class="lg:col-span-5 glass-panel rounded-2xl p-4 flex flex-col justify-between shadow-2xl">
+                <div class="flex items-center justify-between mb-2.5">
+                    <div>
+                        <h2 class="text-sm sm:text-base font-semibold text-white">Màn hứng trực diện & Đồ thị I(x)</h2>
+                        <p class="text-xs text-slate-400">Di chuột hoặc chạm vào màn hứng để đo hiệu quang trình Δd</p>
+                    </div>
+                    <span id="modeBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        VÂN GIAO THOA
+                    </span>
+                </div>
+
+                <!-- Canvas Màn hứng + Thước mm + Đồ thị I(x) -->
+                <div class="relative w-full h-[360px] sm:h-[420px] rounded-xl overflow-hidden border border-slate-800 bg-[#020408] cursor-crosshair">
+                    <canvas id="screenGraphCanvas" class="w-full h-full block"></canvas>
+
+                    <!-- HUD đo hiệu quang trình tại vị trí con trỏ chuột -->
+                    <div id="probeHud" class="absolute bottom-2.5 left-2.5 right-2.5 flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-slate-950/90 border border-slate-800 text-[11px] font-mono pointer-events-none">
+                        <div>
+                            <span class="text-slate-400">Vị trí x:</span>
+                            <span id="probeX" class="text-white font-semibold">0.00 mm</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Hiệu quang trình Δd:</span>
+                            <span id="probeDeltaD" class="text-sky-400 font-semibold">0.00 λ (Vân sáng bậc 0)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng điều khiển thông số vật lý thời gian thực (4 thanh trượt) -->
+        <section class="glass-panel rounded-2xl p-4 shadow-xl">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- 1. Bước sóng ánh sáng λ -->
+                <div class="bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="lambdaSlider" class="text-xs font-semibold text-slate-200">1. Bước sóng ánh sáng (λ)</label>
+                        <span id="valLambda" class="text-xs font-mono font-bold text-emerald-400">532 nm</span>
+                    </div>
+                    <input type="range" id="lambdaSlider" min="380" max="750" value="532" step="1">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>380 nm (Tím)</span>
+                        <span>532 nm (Lục)</span>
+                        <span>750 nm (Đỏ)</span>
+                    </div>
+                </div>
+
+                <!-- 2. Khoảng cách hai khe a -->
+                <div class="bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="slitDistSlider" class="text-xs font-semibold text-slate-200">2. Khoảng cách hai khe (a)</label>
+                        <span id="valSlitDist" class="text-xs font-mono font-bold text-sky-300">0.60 mm</span>
+                    </div>
+                    <input type="range" id="slitDistSlider" min="0.10" max="1.00" value="0.60" step="0.02">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>0.10 mm</span>
+                        <span>0.55 mm</span>
+                        <span>1.00 mm</span>
+                    </div>
+                </div>
+
+                <!-- 3. Khoảng cách từ khe đến màn D -->
+                <div class="bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="screenDistSlider" class="text-xs font-semibold text-slate-200">3. Khoảng cách tới màn (D)</label>
+                        <span id="valScreenDist" class="text-xs font-mono font-bold text-sky-300">1.50 m</span>
+                    </div>
+                    <input type="range" id="screenDistSlider" min="0.50" max="3.00" value="1.50" step="0.05">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>0.50 m</span>
+                        <span>1.75 m</span>
+                        <span>3.00 m</span>
+                    </div>
+                </div>
+
+                <!-- 4. Bề rộng mỗi khe b -->
+                <div class="bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="slitWidthSlider" class="text-xs font-semibold text-slate-200">4. Bề rộng mỗi khe (b)</label>
+                        <span id="valSlitWidth" class="text-xs font-mono font-bold text-amber-300">0.08 mm</span>
+                    </div>
+                    <input type="range" id="slitWidthSlider" min="0.02" max="0.25" value="0.08" step="0.01">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>0.02 mm (Rộng)</span>
+                        <span>0.12 mm</span>
+                        <span>0.25 mm (Hẹp)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /**
+         * MÔ PHỎNG PHÒNG THÍ NGHIỆM QUANG HỌC: GIAO THOA KHE YOUNG (THOMAS YOUNG, 1801)
+         * Bao gồm:
+         * 1. Bàn quang học phối cảnh 2D/3D: Nguồn Laser đơn sắc -> Màn khe đơn sơ cấp S0 (tạo sóng kết hợp)
+         *    -> Màn chắn hai khe S1, S2 (có thể bịt khe S2) -> Trường sóng cầu giao thoa màu sắc
+         *    (cực đại tăng cường và cực tiểu triệt tiêu) -> Màn hứng phối cảnh ở xa.
+         * 2. Màn hứng trực diện & Đồ thị cường độ sáng I(x):
+         *    - Công thức giao thoa + bao hình nhiễu xạ khe đơn Fraunhofer:
+         *      I(x) = I_0 * sinc^2(pi * b * x / (lambda * D)) * cos^2(pi * a * x / (lambda * D))
+         *    - Hỗ trợ chế độ Che 1 khe S2 (chỉ còn nhiễu xạ đơn sinc^2) và chế độ Thuyết Hạt Newton (2 vạch).
+         *    - Thước đo milimet trực quan và đầu dò chuột tính hiệu quang trình Δd = a*x/D theo bội số λ.
+         */
+
+        const state = {
+            laserOn: true,
+            lambda: 532,        // nm (380 - 750)
+            a: 0.60,            // mm: Khoảng cách giữa 2 khe S1 và S2 (0.10 - 1.00)
+            D: 1.50,            // m:  Khoảng cách từ mặt phẳng 2 khe đến màn hứng (0.50 - 3.00)
+            b: 0.08,            // mm: Bề rộng mỗi khe (0.02 - 0.25)
+            mode: 'wave',       // 'wave' | 'particle'
+            coverS2: false,     // false = mở cả 2 khe, true = che kín khe S2
+            probeX_mm: 0.0,     // Vị trí đầu dò chuột trên màn hứng (mm)
+            time: 0
+        };
+
+        // Canvas & Contexts
+        const benchCanvas = document.getElementById('benchCanvas');
+        const screenGraphCanvas = document.getElementById('screenGraphCanvas');
+        const benchCtx = benchCanvas.getContext('2d');
+        const screenCtx = screenGraphCanvas.getContext('2d');
+
+        // Offscreen buffer cho trường sóng giao thoa để đạt 60fps mượt mà trên mọi thiết bị
+        const waveBuffer = document.createElement('canvas');
+        const waveBufCtx = waveBuffer.getContext('2d');
+
+        // UI Elements
+        const btnLaserPower = document.getElementById('btnLaserPower');
+        const laserLed = document.getElementById('laserLed');
+        const laserPowerText = document.getElementById('laserPowerText');
+        const btnCoverSlit2 = document.getElementById('btnCoverSlit2');
+        const slit2Icon = document.getElementById('slit2Icon');
+        const slit2Text = document.getElementById('slit2Text');
+        const btnReset = document.getElementById('btnReset');
+
+        const btnWaveMode = document.getElementById('btnWaveMode');
+        const btnParticleMode = document.getElementById('btnParticleMode');
+
+        const lambdaSlider = document.getElementById('lambdaSlider');
+        const slitDistSlider = document.getElementById('slitDistSlider');
+        const screenDistSlider = document.getElementById('screenDistSlider');
+        const slitWidthSlider = document.getElementById('slitWidthSlider');
+
+        const valLambda = document.getElementById('valLambda');
+        const valSlitDist = document.getElementById('valSlitDist');
+        const valScreenDist = document.getElementById('valScreenDist');
+        const valSlitWidth = document.getElementById('valSlitWidth');
+
+        const hudFringeWidth = document.getElementById('hudFringeWidth');
+        const hudSlitState = document.getElementById('hudSlitState');
+        const modeBadge = document.getElementById('modeBadge');
+        const probeXEl = document.getElementById('probeX');
+        const probeDeltaDEl = document.getElementById('probeDeltaD');
+
+        // Phạm vi hiển thị của màn hứng trực diện: từ -10 mm đến +10 mm
+        const SCREEN_HALF_SPAN_MM = 10.0;
+
+        /**
+         * Chuyển đổi bước sóng (nm) sang màu RGB thực tế của quang phổ khả kiến (380nm - 750nm)
+         */
+        function wavelengthToRGB(wavelength) {
+            const gamma = 0.80;
+            let R = 0, G = 0, B = 0, factor = 0;
+
+            if (wavelength >= 380 && wavelength < 440) {
+                R = -(wavelength - 440) / 60; G = 0; B = 1;
+            } else if (wavelength >= 440 && wavelength < 490) {
+                R = 0; G = (wavelength - 440) / 50; B = 1;
+            } else if (wavelength >= 490 && wavelength < 510) {
+                R = 0; G = 1; B = -(wavelength - 510) / 20;
+            } else if (wavelength >= 510 && wavelength < 580) {
+                R = (wavelength - 510) / 70; G = 1; B = 0;
+            } else if (wavelength >= 580 && wavelength < 645) {
+                R = 1; G = -(wavelength - 645) / 65; B = 0;
+            } else if (wavelength >= 645 && wavelength <= 780) {
+                R = 1; G = 0; B = 0;
+            }
+
+            if (wavelength >= 380 && wavelength < 420) {
+                factor = 0.35 + 0.65 * (wavelength - 380) / 40;
+            } else if (wavelength >= 420 && wavelength < 701) {
+                factor = 1.0;
+            } else if (wavelength >= 701 && wavelength <= 780) {
+                factor = 0.35 + 0.65 * (780 - wavelength) / 80;
+            }
+
+            const r = R === 0 ? 0 : Math.round(255 * Math.pow(R * factor, gamma));
+            const g = G === 0 ? 0 : Math.round(255 * Math.pow(G * factor, gamma));
+            const b = B === 0 ? 0 : Math.round(255 * Math.pow(B * factor, gamma));
+            return { r, g, b, css: `rgb(${r}, ${g}, ${b})` };
+        }
+
+        /**
+         * Tính khoảng vân giao thoa chuẩn: i = (lambda * D) / a (đơn vị: mm)
+         */
+        function getFringeWidthMm() {
+            const lambda_mm = state.lambda * 1e-6;
+            const D_mm = state.D * 1000.0;
+            return (lambda_mm * D_mm) / state.a;
+        }
+
+        /**
+         * Hàm sinc(u) = sin(u)/u
+         */
+        function sinc(u) {
+            if (Math.abs(u) < 1e-6) return 1.0;
+            return Math.sin(u) / u;
+        }
+
+        /**
+         * Tính cường độ sáng chuẩn hóa I(x) tại tọa độ x (mm) trên màn hứng
+         */
+        function computeIntensity(x_mm) {
+            if (!state.laserOn) return 0;
+
+            const lambda_mm = state.lambda * 1e-6;
+            const D_mm = state.D * 1000.0;
+
+            // 1. Chế độ Thuyết Hạt cổ điển (Newton): ánh sáng đi thẳng qua khe như dòng hạt
+            if (state.mode === 'particle') {
+                // Vị trí hình chiếu 2 khe trên màn (phóng nhẹ theo tỷ lệ quan sát để thấy rõ 2 vạch tách biệt)
+                const slitPos1 = -state.a * 1.8;
+                const slitPos2 = state.a * 1.8;
+                const halfBand = Math.max(0.18, state.b * 2.2);
+
+                const band1 = Math.exp(-Math.pow((x_mm - slitPos1) / halfBand, 4));
+                const band2 = state.coverS2 ? 0 : Math.exp(-Math.pow((x_mm - slitPos2) / halfBand, 4));
+                return Math.min(1.0, band1 + band2);
+            }
+
+            // 2. Chế độ Quang học Sóng (Thomas Young 1801)
+            // Tham số bao hình nhiễu xạ khe đơn: beta = (pi * b * x) / (lambda * D)
+            const beta = (Math.PI * state.b * x_mm) / (lambda_mm * D_mm);
+            const diffractionEnvelope = Math.pow(sinc(beta), 2);
+
+            // Nếu bịt khe S2: hệ vân giao thoa biến mất, chỉ còn phân bố nhiễu xạ qua khe đơn S1
+            if (state.coverS2) {
+                return 0.55 * diffractionEnvelope;
+            }
+
+            // Mở cả 2 khe S1 và S2: giao thoa kết hợp nhân với bao hình nhiễu xạ khe đơn
+            // delta = (pi * a * x) / (lambda * D)
+            const delta = (Math.PI * state.a * x_mm) / (lambda_mm * D_mm);
+            const interferenceTerm = Math.pow(Math.cos(delta), 2);
+
+            return diffractionEnvelope * interferenceTerm;
+        }
+
+        /**
+         * Điều chỉnh kích thước Canvas chuẩn Retina / HiDPI
+         */
+        function resizeCanvases() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            [benchCanvas, screenGraphCanvas].forEach(canvas => {
+                const rect = canvas.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    canvas.width = Math.round(rect.width * dpr);
+                    canvas.height = Math.round(rect.height * dpr);
+                    const ctx = canvas.getContext('2d');
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+            });
+        }
+
+        /**
+         * VẼ KHUNG CẢNH 1: BÀN THÍ NGHIỆM QUANG HỌC & TRƯỜNG SÓNG GIAO THOA (2D/3D PERSPECTIVE)
+         */
+        function drawOpticalBench() {
+            const w = benchCanvas.clientWidth;
+            const h = benchCanvas.clientHeight;
+            const ctx = benchCtx;
+
+            ctx.clearRect(0, 0, w, h);
+            const color = wavelengthToRGB(state.lambda);
+
+            // 1. NỀN PHÒNG THÍ NGHIỆM & MẶT BÀN QUANG HỌC PHỐI CẢNH
+            const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.45, 20, w * 0.5, h * 0.5, w * 0.75);
+            bgGrad.addColorStop(0, '#0b1221');
+            bgGrad.addColorStop(1, '#03050a');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Mặt bàn quang học phía dưới tạo chiều sâu không gian phòng thí nghiệm
+            const tableTopY = h * 0.77;
+            const tableBotY = h * 0.96;
+            const tableGrad = ctx.createLinearGradient(0, tableTopY, 0, tableBotY);
+            tableGrad.addColorStop(0, '#0f172a');
+            tableGrad.addColorStop(1, '#070b14');
+            ctx.fillStyle = tableGrad;
+            ctx.beginPath();
+            ctx.moveTo(w * 0.03, tableTopY);
+            ctx.lineTo(w * 0.97, tableTopY);
+            ctx.lineTo(w, tableBotY);
+            ctx.lineTo(0, tableBotY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Lưới lỗ ốc M6 trên mặt bàn quang học
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.7)';
+            for (let r = 0; r < 3; r++) {
+                const t = (r + 0.5) / 3;
+                const y = tableTopY + t * (tableBotY - tableTopY);
+                const margin = (1 - t) * (w * 0.03);
+                for (let c = 0; c <= 16; c++) {
+                    const x = margin + (c / 16) * (w - margin * 2);
+                    ctx.beginPath();
+                    ctx.ellipse(x, y, 2 + t, 0.9 + t * 0.5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Tọa độ các thành phần trên trục quang học
+            const axisY = h * 0.44;
+            const laserX = w * 0.13;
+            const singleSlitX = w * 0.25; // Khe đơn sơ cấp S0
+            const doubleSlitX = w * 0.39; // Màn chắn 2 khe S1, S2
+            // Vị trí màn hứng thay đổi theo thanh trượt D (0.5m -> 3.0m)
+            const dNorm = (state.D - 0.5) / 2.5;
+            const screenX = w * (0.72 + dNorm * 0.19);
+
+            // Khoảng cách hiển thị giữa 2 khe S1 và S2 trên canvas
+            const slitSepPx = 14 + ((state.a - 0.10) / 0.90) * 34;
+            const s1Y = axisY - slitSepPx / 2;
+            const s2Y = axisY + slitSepPx / 2;
+
+            // Chiều cao vùng hoạt động quang học
+            const fieldTop = axisY - h * 0.31;
+            const fieldBot = axisY + h * 0.31;
+            const fieldH = fieldBot - fieldTop;
+
+            if (state.laserOn) {
+                // A. TIA LASER TỪ NGUỒN PHÁT -> KHE ĐƠN SƠ CẤP S0
+                ctx.save();
+                ctx.strokeStyle = color.css;
+                ctx.shadowColor = color.css;
+                ctx.shadowBlur = 14;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(laserX, axisY);
+                ctx.lineTo(singleSlitX, axisY);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.4;
+                ctx.beginPath();
+                ctx.moveTo(laserX, axisY);
+                ctx.lineTo(singleSlitX, axisY);
+                ctx.stroke();
+                ctx.restore();
+
+                // B. TRUYỀN SÓNG / TIA TỪ KHE ĐƠN S0 -> MÀN HAI KHE S1, S2
+                if (state.mode === 'wave') {
+                    // Sóng trụ kết hợp lan tỏa từ khe đơn S0 chiếu đồng pha vào S1 và S2
+                    const waveLenPx = 10 + ((state.lambda - 380) / 370) * 10;
+                    const phaseShift = (state.time * 0.9) % waveLenPx;
+                    const maxR1 = doubleSlitX - singleSlitX;
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(singleSlitX, fieldTop, maxR1, fieldH);
+                    ctx.clip();
+
+                    for (let r = phaseShift; r < maxR1 * 1.25; r += waveLenPx) {
+                        const alpha = Math.max(0.06, 0.42 * (1 - r / (maxR1 * 1.3)));
+                        ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+                        ctx.lineWidth = 1.6;
+                        ctx.beginPath();
+                        ctx.arc(singleSlitX, axisY, r, -Math.PI * 0.45, Math.PI * 0.45);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                } else {
+                    // Chế độ Thuyết Hạt: chùm tia hạt mở rộng chiếu tới S1 và S2
+                    const beamGrad = ctx.createLinearGradient(singleSlitX, 0, doubleSlitX, 0);
+                    beamGrad.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.55)`);
+                    beamGrad.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0.22)`);
+                    ctx.fillStyle = beamGrad;
+                    ctx.beginPath();
+                    ctx.moveTo(singleSlitX, axisY - 2);
+                    ctx.lineTo(doubleSlitX, s1Y - 8);
+                    ctx.lineTo(doubleSlitX, s2Y + 8);
+                    ctx.lineTo(singleSlitX, axisY + 2);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // C. VÙNG GIAO THOA TỪ HAI KHE S1, S2 -> MÀN HỨNG
+                const regionW = screenX - doubleSlitX;
+                if (state.mode === 'wave') {
+                    drawInterferenceWaveField(ctx, doubleSlitX, fieldTop, regionW, fieldH, s1Y, s2Y, color);
+                } else {
+                    // Chế độ Thuyết Hạt Newton: hai chùm tia thẳng hẹp đi qua S1 và S2
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'screen';
+                    const drawParticleRay = (sy) => {
+                        const rayGrad = ctx.createLinearGradient(doubleSlitX, 0, screenX, 0);
+                        rayGrad.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.8)`);
+                        rayGrad.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0.35)`);
+                        ctx.fillStyle = rayGrad;
+                        ctx.beginPath();
+                        ctx.moveTo(doubleSlitX, sy - 2);
+                        ctx.lineTo(screenX, sy - 4);
+                        ctx.lineTo(screenX, sy + 4);
+                        ctx.lineTo(doubleSlitX, sy + 2);
+                        ctx.closePath();
+                        ctx.fill();
+                    };
+                    drawParticleRay(s1Y);
+                    if (!state.coverS2) {
+                        drawParticleRay(s2Y);
+                    }
+                    ctx.restore();
+                }
+            }
+
+            // 2. VẼ NGUỒN PHÁT LASER KIM LOẠI
+            drawLaserDevice(ctx, laserX, axisY, tableTopY + 18, color, state.laserOn);
+
+            // 3. VẼ MÀN CHẮN KHE ĐƠN SƠ CẤP S0
+            drawSlitPlate(ctx, singleSlitX, fieldTop, fieldBot, [axisY], 5, false, 'Khe S₀');
+
+            // 4. VẼ MÀN CHẮN HAI KHE S1, S2 (CÓ HIỂN THỊ TẤM CHẮN NẾU CHE KHE S2)
+            drawSlitPlate(ctx, doubleSlitX, fieldTop, fieldBot, [s1Y, s2Y], 5, state.coverS2, 'Hai khe S₁, S₂');
+
+            // 5. VẼ MÀN HỨNG PHỐI CẢNH Ở PHÍA XA & VÂN GIAO THOA TRỰC TIẾP TRÊN MÀN
+            drawPerspectiveScreen(ctx, screenX, axisY, fieldH, s1Y, s2Y, color);
+        }
+
+        /**
+         * Tính toán và vẽ trường sóng cầu giao thoa màu sắc (tăng cường & triệt tiêu) bằng pixel buffer tốc độ cao
+         */
+        function drawInterferenceWaveField(ctx, startX, topY, width, height, s1Y, s2Y, color) {
+            const scale = 2; // Độ phân giải pixel buffer 2x2 để chạy cực mượt 60fps
+            const bw = Math.max(1, Math.floor(width / scale));
+            const bh = Math.max(1, Math.floor(height / scale));
+
+            if (waveBuffer.width !== bw || waveBuffer.height !== bh) {
+                waveBuffer.width = bw;
+                waveBuffer.height = bh;
+            }
+
+            const imgData = waveBufCtx.createImageData(bw, bh);
+            const data = imgData.data;
+
+            // Số sóng hiệu dụng điều chỉnh theo bước sóng λ và khoảng cách khe a
+            const kWave = (2 * Math.PI) / (9.0 + ((state.lambda - 380) / 370) * 9.0);
+            const omegaT = state.time * 0.16;
+
+            const s1_bx = 0;
+            const s1_by = (s1Y - topY) / scale;
+            const s2_bx = 0;
+            const s2_by = (s2Y - topY) / scale;
+
+            // Hệ số khoảng cách vật lý để mật độ dải vân khớp trực quan với thanh trượt a và λ
+            const physRatio = (state.a / 0.60) * (532 / state.lambda);
+
+            for (let y = 0; y < bh; y++) {
+                const dy1 = y - s1_by;
+                const dy2 = y - s2_by;
+                const dy1Sq = dy1 * dy1;
+                const dy2Sq = dy2 * dy2;
+
+                for (let x = 0; x < bw; x++) {
+                    const idx = (y * bw + x) * 4;
+                    const dx = x - s1_bx;
+                    const dxSq = dx * dx;
+
+                    const r1 = Math.sqrt(dxSq + dy1Sq);
+                    const r2 = Math.sqrt(dxSq + dy2Sq);
+
+                    // Hiệu khoảng cách đường đi điều chỉnh theo tham số vật lý a và λ
+                    const rMean = 0.5 * (r1 + r2);
+                    const deltaR = (r2 - r1) * physRatio;
+
+                    const phase1 = kWave * (rMean - 0.5 * deltaR) - omegaT;
+                    let amp = Math.cos(phase1);
+
+                    if (!state.coverS2) {
+                        const phase2 = kWave * (rMean + 0.5 * deltaR) - omegaT;
+                        // Tổng hợp biên độ hai sóng cầu: nơi ngược pha sẽ triệt tiêu thành vùng tối (nodal lines)
+                        amp = 0.5 * (amp + Math.cos(phase2));
+                    } else {
+                        amp = 0.65 * amp;
+                    }
+
+                    // Suy giảm nhẹ theo khoảng cách truyền sóng & góc mở chùm tia
+                    const distAtten = Math.exp(-rMean / (bw * 1.15));
+                    const angleAtten = Math.exp(-Math.pow((y - bh * 0.5) / (bh * 0.48), 2));
+                    const brightness = Math.pow(Math.abs(amp), 1.35) * distAtten * angleAtten * 1.35;
+
+                    if (brightness > 0.02) {
+                        const bClamped = Math.min(1.0, brightness);
+                        data[idx] = Math.min(255, Math.round(color.r * bClamped));
+                        data[idx + 1] = Math.min(255, Math.round(color.g * bClamped));
+                        data[idx + 2] = Math.min(255, Math.round(color.b * bClamped));
+                        data[idx + 3] = Math.min(255, Math.round(235 * bClamped));
+                    } else {
+                        data[idx + 3] = 0;
+                    }
+                }
+            }
+
+            waveBufCtx.putImageData(imgData, 0, 0);
+
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(waveBuffer, startX, topY, width, height);
+            ctx.restore();
+        }
+
+        /**
+         * Vẽ ống phát Laser đơn sắc & chân đế
+         */
+        function drawLaserDevice(ctx, nozzleX, axisY, baseY, color, isOn) {
+            const bodyW = 66;
+            const bodyH = 24;
+            const bodyX = nozzleX - bodyW;
+            const bodyY = axisY - bodyH / 2;
+
+            // Chân đế quang học
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(bodyX + bodyW * 0.45 - 2.5, bodyY + bodyH, 5, baseY - (bodyY + bodyH));
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.roundRect(bodyX + bodyW * 0.45 - 15, baseY - 4, 30, 8, 3);
+            ctx.fill();
+
+            // Thân ống laser kim loại
+            const grad = ctx.createLinearGradient(0, bodyY, 0, bodyY + bodyH);
+            grad.addColorStop(0, '#475569');
+            grad.addColorStop(0.3, '#94a3b8');
+            grad.addColorStop(0.7, '#334155');
+            grad.addColorStop(1, '#0f172a');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(bodyX, bodyY, bodyW - 6, bodyH, 4);
+            ctx.fill();
+
+            // Đầu phát
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(nozzleX - 10, bodyY - 1, 10, bodyH + 2);
+
+            // Đèn báo nguồn
+            ctx.fillStyle = isOn ? '#10b981' : '#ef4444';
+            ctx.beginPath();
+            ctx.arc(bodyX + 14, bodyY + 7, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (isOn) {
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = color.css;
+                ctx.shadowBlur = 12;
+                ctx.beginPath();
+                ctx.arc(nozzleX, axisY, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '500 11px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Nguồn Laser', bodyX + bodyW / 2, baseY + 18);
+        }
+
+        /**
+         * Vẽ tấm chắn khe hẹp (khe đơn S0 hoặc khe đôi S1, S2)
+         */
+        function drawSlitPlate(ctx, x, topY, botY, slitYs, gapHalfH, coverSecond, label) {
+            const plateW = 6;
+            const leftX = x - plateW / 2;
+
+            // Sắp xếp tọa độ các khe từ trên xuống dưới
+            const sortedSlits = [...slitYs].sort((a, b) => a - b);
+            let currentY = topY;
+
+            ctx.fillStyle = '#334155';
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1;
+
+            sortedSlits.forEach((sy, index) => {
+                const isCovered = (index === 1 && coverSecond);
+                if (!isCovered) {
+                    const segH = (sy - gapHalfH) - currentY;
+                    if (segH > 0) {
+                        ctx.fillRect(leftX, currentY, plateW, segH);
+                        ctx.strokeRect(leftX, currentY, plateW, segH);
+                    }
+                    currentY = sy + gapHalfH;
+                }
+            });
+
+            // Phần tấm chắn dưới cùng
+            if (botY - currentY > 0) {
+                ctx.fillRect(leftX, currentY, plateW, botY - currentY);
+                ctx.strokeRect(leftX, currentY, plateW, botY - currentY);
+            }
+
+            // Nếu khe S2 đang bị che, vẽ miếng chắn màu đỏ cam nổi bật bịt kín khe S2
+            if (coverSecond && sortedSlits.length > 1) {
+                const s2Y = sortedSlits[1];
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(leftX - 2, s2Y - gapHalfH - 2, plateW + 4, gapHalfH * 2 + 4);
+            }
+
+            // Nhãn chú thích phía dưới tấm chắn
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '500 11px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, x, botY + 18);
+        }
+
+        /**
+         * Vẽ màn hứng phối cảnh 3D ở phía xa cùng các dải vân giao thoa trực tiếp trên bề mặt màn
+         */
+        function drawPerspectiveScreen(ctx, x, axisY, fieldH, s1Y, s2Y, color) {
+            const boardW = 28;
+            const boardH = fieldH * 0.94;
+            const skewY = 16;
+
+            const topY = axisY - boardH / 2;
+            const botY = axisY + boardH / 2;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(x - boardW / 2, topY - skewY);
+            ctx.lineTo(x + boardW / 2, topY + skewY);
+            ctx.lineTo(x + boardW / 2, botY + skewY);
+            ctx.lineTo(x - boardW / 2, botY - skewY);
+            ctx.closePath();
+
+            ctx.fillStyle = '#090d16';
+            ctx.fill();
+            ctx.lineWidth = 1.8;
+            ctx.strokeStyle = '#475569';
+            ctx.stroke();
+
+            ctx.clip();
+
+            // Vẽ dải vân giao thoa trực tiếp lên mặt nghiêng của màn hứng
+            if (state.laserOn) {
+                const steps = 90;
+                const sliceH = (boardH + skewY * 2) / steps;
+                for (let i = 0; i < steps; i++) {
+                    const norm = (i / (steps - 1)) * 2 - 1; // -1..1
+                    const x_mm = norm * SCREEN_HALF_SPAN_MM;
+                    const intensity = computeIntensity(x_mm);
+
+                    if (intensity > 0.01) {
+                        const py = topY - skewY + i * sliceH;
+                        const whiteHot = Math.max(0, (intensity - 0.75) * 1.4);
+                        const r = Math.min(255, Math.round(color.r * intensity + 255 * whiteHot));
+                        const g = Math.min(255, Math.round(color.g * intensity + 255 * whiteHot));
+                        const b = Math.min(255, Math.round(color.b * intensity + 255 * whiteHot));
+
+                        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                        ctx.fillRect(x - boardW / 2, py, boardW, sliceH + 0.8);
+                    }
+                }
+            }
+            ctx.restore();
+
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '500 11px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Màn hứng', x, botY + skewY + 18);
+        }
+
+        /**
+         * VẼ KHUNG CẢNH 2: MÀN HỨNG TRỰC DIỆN & ĐỒ THỊ PHÂN BỐ CƯỜNG ĐỘ SÁNG I(x)
+         */
+        function drawScreenAndIntensityGraph() {
+            const w = screenGraphCanvas.clientWidth;
+            const h = screenGraphCanvas.clientHeight;
+            const ctx = screenCtx;
+
+            ctx.fillStyle = '#020408';
+            ctx.fillRect(0, 0, w, h);
+
+            const color = wavelengthToRGB(state.lambda);
+
+            // Bố cục bên trong Canvas phải:
+            // - Nửa trên (từ y = 18 đến y = h * 0.45): Dải vân giao thoa trực diện trên màn hứng
+            // - Giữa (y = h * 0.45 đến y = h * 0.53): Thước đo milimet (mm)
+            // - Nửa dưới (y = h * 0.55 đến y = h - 42): Đường cong đồ thị cường độ sáng I(x)
+            const marginX = 24;
+            const plotW = w - marginX * 2;
+            const centerX = marginX + plotW / 2;
+
+            const bandTop = 18;
+            const bandH = h * 0.36;
+            const bandBot = bandTop + bandH;
+
+            const graphTop = bandBot + 36;
+            const graphBot = h - 44;
+            const graphH = graphBot - graphTop;
+
+            // 1. VẼ DẢI VÂN GIAO THOA TRỰC DIỆN TRÊN MÀN HỨNG
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(marginX, bandTop, plotW, bandH);
+
+            if (state.laserOn) {
+                const pixelStep = 1.5;
+                for (let px = 0; px <= plotW; px += pixelStep) {
+                    const norm = (px / plotW) * 2 - 1; // -1..+1
+                    const x_mm = norm * SCREEN_HALF_SPAN_MM;
+                    const intensity = computeIntensity(x_mm);
+
+                    if (intensity > 0.005) {
+                        // Hiệu ứng lõi chói rực rỡ ở đỉnh cực đại
+                        const whiteHot = Math.max(0, (intensity - 0.72) * 1.45);
+                        const r = Math.min(255, Math.round(color.r * intensity + 255 * whiteHot));
+                        const g = Math.min(255, Math.round(color.g * intensity + 255 * whiteHot));
+                        const b = Math.min(255, Math.round(color.b * intensity + 255 * whiteHot));
+
+                        // Làm mờ nhẹ hai mép trên/dưới của dải vân tạo cảm giác chùm laser thực tế
+                        const bandGrad = ctx.createLinearGradient(0, bandTop, 0, bandBot);
+                        bandGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.25)`);
+                        bandGrad.addColorStop(0.25, `rgba(${r}, ${g}, ${b}, 1)`);
+                        bandGrad.addColorStop(0.75, `rgba(${r}, ${g}, ${b}, 1)`);
+                        bandGrad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.25)`);
+
+                        ctx.fillStyle = bandGrad;
+                        ctx.fillRect(marginX + px, bandTop + 1, pixelStep + 0.6, bandH - 2);
+                    }
+                }
+            } else {
+                ctx.fillStyle = '#475569';
+                ctx.font = '12px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('LASER ĐANG TẮT', centerX, bandTop + bandH / 2 + 4);
+            }
+
+            // 2. VẼ THƯỚC ĐO MILIMET (mm) NGAY DƯỚI MÀN HỨNG
+            const rulerY = bandBot + 8;
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(marginX, rulerY);
+            ctx.lineTo(marginX + plotW, rulerY);
+            ctx.stroke();
+
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            for (let mm = -10; mm <= 10; mm += 1) {
+                const tx = centerX + (mm / SCREEN_HALF_SPAN_MM) * (plotW / 2);
+                const isMajor = (mm % 2 === 0);
+                const tickH = isMajor ? 7 : 4;
+
+                ctx.strokeStyle = mm === 0 ? '#38bdf8' : '#64748b';
+                ctx.beginPath();
+                ctx.moveTo(tx, rulerY);
+                ctx.lineTo(tx, rulerY + tickH);
+                ctx.stroke();
+
+                if (isMajor) {
+                    ctx.fillStyle = mm === 0 ? '#38bdf8' : '#94a3b8';
+                    ctx.fillText(`${mm}`, tx, rulerY + 18);
+                }
+            }
+            ctx.fillStyle = '#64748b';
+            ctx.textAlign = 'right';
+            ctx.fillText('x (mm)', marginX + plotW, rulerY + 18);
+
+            // 3. VẼ ĐỒ THỊ PHÂN BỐ CƯỜNG ĐỘ SÁNG I(x)
+            // Khung nền đồ thị
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+            ctx.fillRect(marginX, graphTop, plotW, graphH);
+            ctx.strokeStyle = '#1e293b';
+            ctx.strokeRect(marginX, graphTop, plotW, graphH);
+
+            // Đường trục trung tâm x = 0
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(centerX, graphTop);
+            ctx.lineTo(centerX, graphBot);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Nhãn trục tung I(x)
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText('Cường độ sáng I(x)', marginX + 6, graphTop + 13);
+
+            if (state.laserOn) {
+                // Nếu ở chế độ Sóng và mở cả 2 khe: vẽ thêm đường bao hình nhiễu xạ nét đứt để thấy rõ hiệu ứng bề rộng khe b
+                if (state.mode === 'wave' && !state.coverS2) {
+                    const lambda_mm = state.lambda * 1e-6;
+                    const D_mm = state.D * 1000.0;
+                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+                    ctx.lineWidth = 1.1;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    for (let px = 0; px <= plotW; px += 2) {
+                        const x_mm = ((px / plotW) * 2 - 1) * SCREEN_HALF_SPAN_MM;
+                        const beta = (Math.PI * state.b * x_mm) / (lambda_mm * D_mm);
+                        const env = Math.pow(sinc(beta), 2);
+                        const py = graphBot - env * (graphH - 18);
+                        if (px === 0) ctx.moveTo(marginX + px, py);
+                        else ctx.lineTo(marginX + px, py);
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                // Vẽ đường cong cường độ sáng chính I(x) + tô bóng gradient bên dưới
+                const fillGrad = ctx.createLinearGradient(0, graphTop, 0, graphBot);
+                fillGrad.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.45)`);
+                fillGrad.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0.02)`);
+
+                ctx.beginPath();
+                ctx.moveTo(marginX, graphBot);
+                for (let px = 0; px <= plotW; px += 1.5) {
+                    const x_mm = ((px / plotW) * 2 - 1) * SCREEN_HALF_SPAN_MM;
+                    const intensity = computeIntensity(x_mm);
+                    const py = graphBot - intensity * (graphH - 18);
+                    ctx.lineTo(marginX + px, py);
+                }
+                ctx.lineTo(marginX + plotW, graphBot);
+                ctx.closePath();
+                ctx.fillStyle = fillGrad;
+                ctx.fill();
+
+                // Nét vẽ đường cong sáng rực
+                ctx.beginPath();
+                for (let px = 0; px <= plotW; px += 1.5) {
+                    const x_mm = ((px / plotW) * 2 - 1) * SCREEN_HALF_SPAN_MM;
+                    const intensity = computeIntensity(x_mm);
+                    const py = graphBot - intensity * (graphH - 18);
+                    if (px === 0) ctx.moveTo(marginX + px, py);
+                    else ctx.lineTo(marginX + px, py);
+                }
+                ctx.strokeStyle = color.css;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // 4. VẼ VẠCH ĐẦU DÒ TƯƠNG TÁC THEO VỊ TRÍ CHUỘT TRÊN MÀN HỨNG
+            const probePx = centerX + (state.probeX_mm / SCREEN_HALF_SPAN_MM) * (plotW / 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 2]);
+            ctx.beginPath();
+            ctx.moveTo(probePx, bandTop);
+            ctx.lineTo(probePx, graphBot);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            if (state.laserOn) {
+                const probeI = computeIntensity(state.probeX_mm);
+                const dotY = graphBot - probeI * (graphH - 18);
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = color.css;
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(probePx, dotY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        /**
+         * Cập nhật số liệu giao diện & thông số tính toán đầu dò hiệu quang trình
+         */
+        function updateUI() {
+            const color = wavelengthToRGB(state.lambda);
+
+            // Giá trị các thanh trượt
+            valLambda.textContent = `${state.lambda} nm`;
+            valLambda.style.color = color.css;
+            lambdaSlider.style.setProperty('--thumb-color', color.css);
+
+            valSlitDist.textContent = `${state.a.toFixed(2)} mm`;
+            valScreenDist.textContent = `${state.D.toFixed(2)} m`;
+            valSlitWidth.textContent = `${state.b.toFixed(2)} mm`;
+
+            // Tính khoảng vân i = λD/a
+            const i_mm = getFringeWidthMm();
+            hudFringeWidth.textContent = `${i_mm.toFixed(2)} mm`;
+
+            // Cập nhật trạng thái khe S1/S2
+            if (state.coverS2) {
+                hudSlitState.textContent = '1 KHE (S₂ ĐÃ CHE)';
+                hudSlitState.className = 'text-amber-400 font-bold ml-1';
+                slit2Text.textContent = 'Che 1 khe (S2): ĐANG CHE';
+                slit2Icon.className = 'w-2 h-2 rounded-full bg-amber-400';
+                btnCoverSlit2.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-amber-500/20 text-amber-300 border-amber-500/50';
+            } else {
+                hudSlitState.textContent = '2 KHE (S₁ & S₂)';
+                hudSlitState.className = 'text-sky-400 font-bold ml-1';
+                slit2Text.textContent = 'Che 1 khe (S2): MỞ';
+                slit2Icon.className = 'w-2 h-2 rounded-full bg-sky-400';
+                btnCoverSlit2.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all border active:scale-95 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-slate-700';
+            }
+
+            // Cập nhật nút Bật/Tắt Laser
+            if (state.laserOn) {
+                btnLaserPower.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-lg active:scale-95 bg-emerald-500 text-slate-950 shadow-emerald-500/25';
+                laserLed.className = 'w-2 h-2 rounded-full bg-slate-950 animate-ping';
+                laserPowerText.textContent = 'LASER: BẬT';
+            } else {
+                btnLaserPower.className = 'flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-lg active:scale-95 bg-slate-800 text-slate-300 border border-slate-700';
+                laserLed.className = 'w-2 h-2 rounded-full bg-rose-500';
+                laserPowerText.textContent = 'LASER: TẮT';
+            }
+
+            // Cập nhật chế độ Sóng vs Hạt
+            if (state.mode === 'wave') {
+                btnWaveMode.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-sky-500 text-slate-950 shadow';
+                btnParticleMode.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white';
+                if (state.coverS2) {
+                    modeBadge.textContent = 'NHIỄU XẠ 1 KHE';
+                    modeBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                } else {
+                    modeBadge.textContent = 'VÂN GIAO THOA';
+                    modeBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                }
+            } else {
+                btnParticleMode.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-amber-500 text-slate-950 shadow';
+                btnWaveMode.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white';
+                modeBadge.textContent = '2 VẠCH HẠT';
+                modeBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30';
+            }
+
+            // Tính toán đầu dò hiệu quang trình tại vị trí x chuột: Δd = (a * x) / D = (x / i) * λ
+            updateProbeReadout();
+            drawScreenAndIntensityGraph();
+        }
+
+        /**
+         * Tính và hiển thị hiệu quang trình Δd theo bước sóng λ tại con trỏ chuột trên màn hứng
+         */
+        function updateProbeReadout() {
+            const x = state.probeX_mm;
+            probeXEl.textContent = `${x >= 0 ? '+' : ''}${x.toFixed(2)} mm`;
+
+            if (!state.laserOn) {
+                probeDeltaDEl.textContent = '—';
+                return;
+            }
+            if (state.mode === 'particle') {
+                probeDeltaDEl.textContent = 'Không áp dụng (Thuyết Hạt)';
+                return;
+            }
+            if (state.coverS2) {
+                probeDeltaDEl.textContent = 'Chỉ có 1 khe S₁ (Mất giao thoa)';
+                return;
+            }
+
+            const i_mm = getFringeWidthMm();
+            const kOrder = x / i_mm; // Δd / λ
+            const nearestInt = Math.round(kOrder);
+            const nearestHalf = Math.round(kOrder - 0.5) + 0.5;
+
+            let label = '';
+            if (Math.abs(kOrder - nearestInt) < 0.08) {
+                label = nearestInt === 0 ? 'Vân sáng trung tâm' : `Vân sáng bậc ${Math.abs(nearestInt)}`;
+            } else if (Math.abs(kOrder - nearestHalf) < 0.08) {
+                const darkOrder = Math.floor(Math.abs(kOrder)) + 1;
+                label = `Vân tối thứ ${darkOrder}`;
+            } else {
+                label = 'Vùng trung gian';
+            }
+
+            probeDeltaDEl.textContent = `${kOrder >= 0 ? '+' : ''}${kOrder.toFixed(2)} λ (${label})`;
+        }
+
+        /**
+         * Xử lý tương tác di chuột / chạm trên Canvas màn hứng để di chuyển thước đo
+         */
+        function handleScreenPointer(clientX) {
+            const rect = screenGraphCanvas.getBoundingClientRect();
+            const marginX = 24;
+            const plotW = rect.width - marginX * 2;
+            const relX = Math.max(0, Math.min(plotW, clientX - rect.left - marginX));
+            const norm = (relX / plotW) * 2 - 1; // -1..+1
+            state.probeX_mm = norm * SCREEN_HALF_SPAN_MM;
+            updateProbeReadout();
+            drawScreenAndIntensityGraph();
+        }
+
+        screenGraphCanvas.addEventListener('mousemove', (e) => {
+            handleScreenPointer(e.clientX);
+        });
+        screenGraphCanvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                handleScreenPointer(e.touches[0].clientX);
+            }
+        }, { passive: true });
+        screenGraphCanvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                handleScreenPointer(e.touches[0].clientX);
+            }
+        }, { passive: true });
+
+        /**
+         * Vòng lặp hoạt ảnh 60fps
+         */
+        function animate() {
+            if (state.laserOn) {
+                state.time += 1;
+            }
+            drawOpticalBench();
+            requestAnimationFrame(animate);
+        }
+
+        // Sự kiện các nút điều khiển & thanh trượt
+        btnLaserPower.addEventListener('click', () => {
+            state.laserOn = !state.laserOn;
+            updateUI();
+        });
+
+        btnCoverSlit2.addEventListener('click', () => {
+            state.coverS2 = !state.coverS2;
+            updateUI();
+        });
+
+        btnWaveMode.addEventListener('click', () => {
+            state.mode = 'wave';
+            updateUI();
+        });
+
+        btnParticleMode.addEventListener('click', () => {
+            state.mode = 'particle';
+            updateUI();
+        });
+
+        lambdaSlider.addEventListener('input', (e) => {
+            state.lambda = parseInt(e.target.value, 10);
+            updateUI();
+        });
+
+        slitDistSlider.addEventListener('input', (e) => {
+            state.a = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        screenDistSlider.addEventListener('input', (e) => {
+            state.D = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        slitWidthSlider.addEventListener('input', (e) => {
+            state.b = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        btnReset.addEventListener('click', () => {
+            state.laserOn = true;
+            state.lambda = 532;
+            state.a = 0.60;
+            state.D = 1.50;
+            state.b = 0.08;
+            state.mode = 'wave';
+            state.coverS2 = false;
+            state.probeX_mm = 0.0;
+
+            lambdaSlider.value = 532;
+            slitDistSlider.value = 0.60;
+            screenDistSlider.value = 1.50;
+            slitWidthSlider.value = 0.08;
+
+            updateUI();
+        });
+
+        window.addEventListener('resize', () => {
+            resizeCanvases();
+            updateUI();
+        });
+
+        window.onload = function () {
+            resizeCanvases();
+            updateUI();
+            animate();
+        };
+    </script>
+</body>
+</html>

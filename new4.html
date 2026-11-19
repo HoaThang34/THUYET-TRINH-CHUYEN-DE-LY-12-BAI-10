@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thí nghiệm Davisson – Germer (1927) • Nhiễu xạ Electron & Sóng vật chất De Broglie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #03050a;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        /* Thanh trượt lượng tử tùy chỉnh */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--thumb-color, #22d3ee);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 12px var(--thumb-color, rgba(34, 211, 238, 0.85));
+            border: 2px solid #ffffff;
+            transition: transform 0.12s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.18);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 999px;
+        }
+        .glass-panel {
+            background: rgba(10, 15, 28, 0.86);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(51, 65, 85, 0.55);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
+
+    <!-- 1. HEADER TINH GỌN & CHỈ SỐ VẬT LÝ THỜI GIAN THỰC -->
+    <header class="border-b border-slate-800/80 bg-[#060a13]/95 sticky top-0 z-30 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+                <!-- Tiêu đề thí nghiệm -->
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                            Cơ học Lượng tử • 1927
+                        </span>
+                        <span class="text-xs text-slate-400 font-mono">Mạng đơn tinh thể Niken (d = 2.15 Å)</span>
+                    </div>
+                    <h1 class="text-base sm:text-lg lg:text-xl font-bold tracking-tight text-white mt-0.5">
+                        Thí nghiệm Davisson – Germer (1927) <span class="text-cyan-400">•</span> <span class="bg-gradient-to-r from-cyan-300 via-sky-300 to-emerald-400 bg-clip-text text-transparent">Nhiễu xạ Electron & Sóng vật chất De Broglie</span>
+                    </h1>
+                </div>
+
+                <!-- 4 Chỉ số vật lý thời gian thực -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                    <div class="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                        <div class="text-[10px] text-slate-400">Điện áp gia tốc U</div>
+                        <div id="hdrVoltage" class="text-sm font-bold text-amber-300">54.0 V</div>
+                    </div>
+                    <div class="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                        <div class="text-[10px] text-slate-400">λ De Broglie = h/√(2meU)</div>
+                        <div id="hdrDeBroglie" class="text-sm font-bold text-cyan-400">1.669 Å</div>
+                    </div>
+                    <div class="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                        <div class="text-[10px] text-slate-400">λ Bragg = d·sin(φ)</div>
+                        <div id="hdrBragg" class="text-sm font-bold text-emerald-400">1.647 Å</div>
+                    </div>
+                    <div class="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                        <div class="text-[10px] text-slate-400">Vận tốc electron v</div>
+                        <div id="hdrVelocity" class="text-sm font-bold text-purple-300">4.36 ×10⁶ m/s</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN LAB WORKSPACE -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
+
+        <!-- Khu vực hiển thị chính: Buồng chân không (7 cột) + Biểu đồ hoa hồng Polar & Đồ thị I(φ) (5 cột) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+            <!-- 2. KHÔNG GIAN THÍ NGHIỆM BUỒNG CHÂN KHÔNG CHÍNH -->
+            <div class="lg:col-span-7 glass-panel rounded-2xl p-4 shadow-2xl flex flex-col justify-between space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        <h2 class="text-sm font-semibold text-white">Buồng chân không: Súng Electron, Bia Niken & Đầu dò Faraday</h2>
+                    </div>
+
+                    <!-- Nút chuyển đổi Soi vi mô mạng tinh thể Ni -->
+                    <button id="btnMicroView" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border active:scale-95 bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/40">
+                        <span id="microIcon" class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                        <span id="microText">Soi vi mô mạng tinh thể Ni (d = 2.15 Å): TẮT</span>
+                    </button>
+                </div>
+
+                <!-- Canvas Buồng chân không / Phóng đại mạng tinh thể -->
+                <div class="relative w-full h-[380px] sm:h-[430px] rounded-xl overflow-hidden border border-slate-800 bg-[#020409]">
+                    <canvas id="chamberCanvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+
+                    <!-- HUD Trạng thái cộng hưởng Bragg -->
+                    <div class="absolute top-3 left-3 pointer-events-none">
+                        <div id="resonanceBadge" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/45 backdrop-blur-md text-[11px] font-mono font-semibold text-emerald-300">
+                            CỰC ĐẠI NHIỄU XẠ BẬC 1 (φ = 50°, U = 54V)
+                        </div>
+                    </div>
+
+                    <!-- Hướng dẫn thao tác ngắn gọn -->
+                    <div class="absolute bottom-2.5 left-3 right-3 flex justify-between items-center text-[11px] font-mono text-slate-400 pointer-events-none">
+                        <span>💡 Kéo thả trực tiếp <strong class="text-amber-300">Đầu dò Faraday</strong> trên cung tròn</span>
+                        <span id="hudCurrentReadout" class="text-cyan-300 font-semibold">I(50°) = 100%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. BIỂU ĐỒ PHÂN CỰC (POLAR PLOT) & ĐỒ THỊ CƯỜNG ĐỘ I(φ) -->
+            <div class="lg:col-span-5 glass-panel rounded-2xl p-4 shadow-2xl flex flex-col justify-between space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-sm font-semibold text-white">Biểu đồ Hoa hồng Phân cực & Phổ I(φ)</h2>
+                        <p class="text-[11px] text-slate-400">Phân bố cường độ chùm electron tán xạ theo góc φ (20° – 80°)</p>
+                    </div>
+                    <span id="modeTag" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                        SÓNG VẬT CHẤT
+                    </span>
+                </div>
+
+                <!-- Canvas Polar Diagram + Intensity Graph -->
+                <div class="relative w-full h-[380px] sm:h-[430px] rounded-xl overflow-hidden border border-slate-800 bg-[#020409]">
+                    <canvas id="polarCanvas" class="w-full h-full block"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 4. BẢNG ĐIỀU KHIỂN TƯƠNG TÁC -->
+        <section class="glass-panel rounded-2xl p-4 shadow-xl">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+
+                <!-- Thanh trượt 1: Điện áp gia tốc U (30V - 80V) -->
+                <div class="lg:col-span-4 bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="voltageSlider" class="text-xs font-semibold text-slate-200">1. Điện áp gia tốc U (V)</label>
+                        <div class="flex items-center gap-2">
+                            <span id="valVoltage" class="text-xs font-mono font-bold text-amber-300">54 V</span>
+                            <button id="btnPreset54V" class="px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-semibold transition active:scale-95">
+                                Mốc chuẩn 54 V
+                            </button>
+                        </div>
+                    </div>
+                    <input type="range" id="voltageSlider" min="30" max="80" value="54" step="0.5" style="--thumb-color: #fbbf24;">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>30 V (λ=2.24Å)</span>
+                        <span>54 V (Đỉnh 50°)</span>
+                        <span>80 V (λ=1.37Å)</span>
+                    </div>
+                </div>
+
+                <!-- Thanh trượt 2: Góc đầu dò Faraday φ (20° - 80°) -->
+                <div class="lg:col-span-4 bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="angleSlider" class="text-xs font-semibold text-slate-200">2. Góc đầu dò Faraday φ (°)</label>
+                        <span id="valAngle" class="text-xs font-mono font-bold text-cyan-400">50.0°</span>
+                    </div>
+                    <input type="range" id="angleSlider" min="20" max="80" value="50" step="0.5" style="--thumb-color: #22d3ee;">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1.5">
+                        <span>20°</span>
+                        <span>50° (Cực đại Bragg)</span>
+                        <span>80°</span>
+                    </div>
+                </div>
+
+                <!-- Nút chuyển đổi chế độ: Sóng vật chất vs Hạt cổ điển -->
+                <div class="lg:col-span-4 bg-slate-900/75 p-3.5 rounded-xl border border-slate-800/90 flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-semibold text-slate-200">3. Bản chất chùm Electron</span>
+                        <span id="galvanoText" class="text-xs font-mono font-bold text-emerald-400">Dòng dò: 100.0 µA</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button id="btnWaveMode" class="py-1.5 px-2 rounded-lg text-xs font-semibold transition-all bg-cyan-500 text-slate-950 shadow">
+                            Sóng vật chất (De Broglie)
+                        </button>
+                        <button id="btnParticleMode" class="py-1.5 px-2 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white">
+                            Hạt cổ điển (Tán xạ đều)
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /**
+         * MÔ PHỎNG THÍ NGHIỆM DAVISSON – GERMER (1927)
+         * Cơ sở vật lý lượng tử & nhiễu xạ Bragg trên bề mặt tinh thể Niken:
+         * - Hằng số Planck: h = 6.62607015e-34 J·s
+         * - Khối lượng electron: m_e = 9.1093837e-31 kg
+         * - Điện tích nguyên tố: e = 1.60217663e-19 C
+         * - Bước sóng De Broglie (Angstrom): lambda_dB = h / sqrt(2 * m_e * e * U) * 1e10 ≈ 12.2643 / sqrt(U) (Å)
+         * - Vận tốc electron: v = sqrt(2 * e * U / m_e) (m/s)
+         * - Khoảng cách mặt mạng tinh thể Niken (111) bề mặt: d = 2.15 Å
+         * - Điều kiện nhiễu xạ bề mặt (chùm tới vuông góc mặt tinh thể, đầu dò tại góc tán xạ phi):
+         *   Hiệu quang trình giữa hai tia phản xạ từ hai nguyên tử lân cận: Delta_L = d * sin(phi)
+         *   Cực đại nhiễu xạ bậc n = 1 khi: d * sin(phi) = lambda_dB
+         *   Tại U = 54 V => lambda_dB = 12.2643 / sqrt(54) ≈ 1.669 Å.
+         *   Với phi = 50° => d * sin(50°) = 2.15 * 0.76604 ≈ 1.647 Å (khớp cực đại nhiễu xạ sắc nét!).
+         */
+
+        const H_PLANCK = 6.62607015e-34;
+        const M_ELECTRON = 9.1093837e-31;
+        const E_CHARGE = 1.60217663e-19;
+        const D_NICKEL_A = 2.15; // Khoảng cách mặt mạng Niken d = 2.15 Angstrom
+
+        const state = {
+            voltage: 54.0,          // Điện áp gia tốc U (30V - 80V)
+            angleDeg: 50.0,         // Góc đầu dò Faraday phi (20° - 80°)
+            mode: 'wave',           // 'wave' (Sóng De Broglie) | 'particle' (Hạt cổ điển)
+            microView: false,       // Chế độ phóng đại soi vi mô mạng tinh thể Ni
+            isDragging: false,      // Kéo thả đầu dò Faraday
+            time: 0
+        };
+
+        // Canvases & Contexts
+        const chamberCanvas = document.getElementById('chamberCanvas');
+        const polarCanvas = document.getElementById('polarCanvas');
+        const cCtx = chamberCanvas.getContext('2d');
+        const pCtx = polarCanvas.getContext('2d');
+
+        // UI Elements
+        const hdrVoltage = document.getElementById('hdrVoltage');
+        const hdrDeBroglie = document.getElementById('hdrDeBroglie');
+        const hdrBragg = document.getElementById('hdrBragg');
+        const hdrVelocity = document.getElementById('hdrVelocity');
+
+        const resonanceBadge = document.getElementById('resonanceBadge');
+        const hudCurrentReadout = document.getElementById('hudCurrentReadout');
+        const modeTag = document.getElementById('modeTag');
+
+        const voltageSlider = document.getElementById('voltageSlider');
+        const angleSlider = document.getElementById('angleSlider');
+        const valVoltage = document.getElementById('valVoltage');
+        const valAngle = document.getElementById('valAngle');
+        const galvanoText = document.getElementById('galvanoText');
+
+        const btnPreset54V = document.getElementById('btnPreset54V');
+        const btnWaveMode = document.getElementById('btnWaveMode');
+        const btnParticleMode = document.getElementById('btnParticleMode');
+        const btnMicroView = document.getElementById('btnMicroView');
+        const microIcon = document.getElementById('microIcon');
+        const microText = document.getElementById('microText');
+
+        // Hạt electron chuyển động trong chùm tia tới và chùm tia tán xạ
+        const beamParticles = Array.from({ length: 36 }, (_, i) => ({
+            t: i / 36,
+            jitter: (Math.random() - 0.5) * 4,
+            scatterAngle: 20 + Math.random() * 60,
+            speed: 0.012 + Math.random() * 0.004
+        }));
+
+        /**
+         * Tính bước sóng De Broglie (Angstrom) từ điện áp U (Volt)
+         */
+        function getDeBroglieAngstrom(U = state.voltage) {
+            const p = Math.sqrt(2 * M_ELECTRON * E_CHARGE * U);
+            return (H_PLANCK / p) * 1e10;
+        }
+
+        /**
+         * Tính bước sóng Bragg d * sin(phi) (Angstrom)
+         */
+        function getBraggAngstrom(phiDeg = state.angleDeg) {
+            const rad = (phiDeg * Math.PI) / 180;
+            return D_NICKEL_A * Math.sin(rad);
+        }
+
+        /**
+         * Tính vận tốc electron v (đơn vị 10^6 m/s)
+         */
+        function getElectronVelocityMmPs(U = state.voltage) {
+            const v = Math.sqrt((2 * E_CHARGE * U) / M_ELECTRON);
+            return v / 1e6;
+        }
+
+        /**
+         * Tính cường độ chùm electron tán xạ chuẩn hóa I(phi, U) ∈ [0, 1]
+         * - Chế độ 'wave': Kết hợp nền tán xạ khuếch tán yếu + đỉnh giao thoa nhiễu xạ Bragg sắc nét
+         *   khi d * sin(phi) ≈ lambda_dB (đạt cực đại chuẩn tại U = 54V, phi = 50°).
+         * - Chế độ 'particle': Tán xạ hạt cổ điển tuân theo phân bố trơn mượt cos(phi/2), hoàn toàn không có đỉnh giao thoa.
+         */
+        function computeScatteredIntensity(phiDeg, U = state.voltage) {
+            const phiRad = (phiDeg * Math.PI) / 180;
+
+            if (state.mode === 'particle') {
+                // Mô hình hạt cổ điển: các viên bi electron va chạm đàn hồi tán xạ trơn đều mọi góc
+                return 0.36 * Math.cos(phiRad * 0.55) + 0.14;
+            }
+
+            // Mô hình Sóng vật chất De Broglie:
+            const lambdaDB = getDeBroglieAngstrom(U);
+            // Hiệu chỉnh nội thế năng tinh thể Niken nhỏ (~0.022 Å) để đỉnh 54V rơi chính xác tại 50.0° như thực nghiệm 1927
+            const effectiveLambda = lambdaDB - 0.022;
+            const pathDiff = D_NICKEL_A * Math.sin(phiRad);
+
+            // Pha lệch giao thoa giữa N mặt mạng hiệu dụng (N_eff ≈ 6)
+            const phaseDiff = (Math.PI * (pathDiff - effectiveLambda)) / effectiveLambda;
+            const gratingFactor = Math.exp(-Math.pow(phaseDiff * 3.1, 2));
+
+            // Độ cộng hưởng năng lượng (mạnh nhất quanh vùng 54V)
+            const voltageEnvelope = Math.exp(-Math.pow((U - 54.0) / 38.0, 2));
+
+            // Nền tán xạ không kết hợp nhẹ + đỉnh nhiễu xạ Bragg sắc nét
+            const diffuseBase = 0.15 * Math.cos(phiRad * 0.5);
+            const braggPeak = (0.62 + 0.24 * voltageEnvelope) * gratingFactor;
+
+            return Math.min(1.0, diffuseBase + braggPeak);
+        }
+
+        /**
+         * Tìm góc cực đại nhiễu xạ hiện tại ứng với điện áp U
+         */
+        function getPeakAngleForVoltage(U = state.voltage) {
+            const effLambda = getDeBroglieAngstrom(U) - 0.022;
+            const sinPhi = Math.min(0.98, Math.max(0.2, effLambda / D_NICKEL_A));
+            return (Math.asin(sinPhi) * 180) / Math.PI;
+        }
+
+        /**
+         * Điều chỉnh kích thước Canvas chuẩn Retina / HiDPI
+         */
+        function resizeCanvases() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            [chamberCanvas, polarCanvas].forEach(canvas => {
+                const rect = canvas.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    canvas.width = Math.round(rect.width * dpr);
+                    canvas.height = Math.round(rect.height * dpr);
+                    const ctx = canvas.getContext('2d');
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+            });
+        }
+
+        /**
+         * Lấy tọa độ hình học trong buồng chân không để vẽ & xử lý kéo thả đầu dò Faraday
+         */
+        function getChamberMetrics(w, h) {
+            const targetX = w * 0.34;      // Tâm bề mặt bia tinh thể Niken
+            const targetY = h * 0.72;      // Cao độ bề mặt bia tinh thể Niken
+            const arcRadius = Math.min(w * 0.54, h * 0.58); // Bán kính cung di chuyển của đầu dò Faraday
+            return { targetX, targetY, arcRadius };
+        }
+
+        /**
+         * VẼ KHUNG CẢNH 1: BUỒNG CHÂN KHÔNG (GÓC NHÌN TỔNG THỂ HOẶC SOI VI MÔ MẠNG TINH THỂ NI)
+         */
+        function drawChamberScene() {
+            const w = chamberCanvas.clientWidth;
+            const h = chamberCanvas.clientHeight;
+            const ctx = cCtx;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Nền buồng chân không tối sâu
+            const bgGrad = ctx.createRadialGradient(w * 0.42, h * 0.5, 20, w * 0.5, h * 0.5, w * 0.8);
+            bgGrad.addColorStop(0, '#0a1120');
+            bgGrad.addColorStop(1, '#020409');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            if (state.microView) {
+                drawMicroscopicCrystalView(ctx, w, h);
+            } else {
+                drawMacroscopicChamberView(ctx, w, h);
+            }
+        }
+
+        /**
+         * CHẾ ĐỘ 1A: GÓC NHÌN BUỒNG CHÂN KHÔNG TỔNG THỂ (SÚNG ELECTRON + BIA NIKEN + ĐẦU DÒ FARADAY)
+         */
+        function drawMacroscopicChamberView(ctx, w, h) {
+            const { targetX, targetY, arcRadius } = getChamberMetrics(w, h);
+            const phiRad = (state.angleDeg * Math.PI) / 180;
+            const intensity = computeScatteredIntensity(state.angleDeg, state.voltage);
+            const lambdaDB = getDeBroglieAngstrom(state.voltage);
+
+            // 1. Khung buồng chân không hình trụ kính/thép mờ
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.45)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(targetX, targetY, arcRadius + 36, -Math.PI * 0.62, 0.08);
+            ctx.stroke();
+
+            // 2. VẼ VẠCH CHIA ĐỘ HÌNH CUNG (20° -> 80°) CHO ĐẦU DÒ FARADAY
+            ctx.save();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(targetX, targetY, arcRadius, -Math.PI / 2 + (20 * Math.PI / 180), -Math.PI / 2 + (80 * Math.PI / 180));
+            ctx.stroke();
+
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (let deg = 20; deg <= 80; deg += 5) {
+                const rad = (deg * Math.PI) / 180;
+                // Góc 0° hướng thẳng đứng lên trên (trùng phương chùm tia tới)
+                const dirX = Math.sin(rad);
+                const dirY = -Math.cos(rad);
+                const isMajor = (deg % 10 === 0);
+                const tickLen = isMajor ? 10 : 5;
+
+                ctx.strokeStyle = deg === 50 ? '#34d399' : (isMajor ? '#94a3b8' : '#475569');
+                ctx.lineWidth = deg === 50 ? 1.8 : 1;
+                ctx.beginPath();
+                ctx.moveTo(targetX + dirX * (arcRadius - tickLen), targetY + dirY * (arcRadius - tickLen));
+                ctx.lineTo(targetX + dirX * arcRadius, targetY + dirY * arcRadius);
+                ctx.stroke();
+
+                if (isMajor) {
+                    ctx.fillStyle = deg === 50 ? '#34d399' : '#94a3b8';
+                    ctx.fillText(`${deg}°`, targetX + dirX * (arcRadius + 16), targetY + dirY * (arcRadius + 16));
+                }
+            }
+            ctx.restore();
+
+            // Đường trục thẳng đứng (φ = 0°) từ súng electron xuống bia Niken
+            ctx.strokeStyle = 'rgba(34, 211, 238, 0.25)';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(targetX, targetY - arcRadius - 25);
+            ctx.lineTo(targetX, targetY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Vẽ cung góc φ giữa chùm tới và hướng đầu dò Faraday
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(targetX, targetY, 54, -Math.PI / 2, -Math.PI / 2 + phiRad);
+            ctx.stroke();
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = '600 11px "JetBrains Mono", monospace';
+            const midAngle = -Math.PI / 2 + phiRad / 2;
+            ctx.fillText(`φ=${state.angleDeg.toFixed(0)}°`, targetX + Math.cos(midAngle) * 72, targetY + Math.sin(midAngle) * 72);
+
+            // 3. VẼ SÚNG BẮN ELECTRON (ELECTRON GUN) Ở PHÍA TRÊN
+            const gunTopY = Math.max(18, targetY - arcRadius - 32);
+            const gunBotY = gunTopY + 68;
+            drawElectronGun(ctx, targetX, gunTopY, gunBotY);
+
+            // 4. VẼ CHÙM TIA ELECTRON TỚI (TỪ SÚNG XUỐNG BIA NIKEN)
+            const beamGrad = ctx.createLinearGradient(0, gunBotY, 0, targetY);
+            beamGrad.addColorStop(0, 'rgba(34, 211, 238, 0.9)');
+            beamGrad.addColorStop(1, 'rgba(34, 211, 238, 0.55)');
+
+            ctx.save();
+            ctx.strokeStyle = beamGrad;
+            ctx.shadowColor = '#22d3ee';
+            ctx.shadowBlur = 14;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(targetX, gunBotY);
+            ctx.lineTo(targetX, targetY);
+            ctx.stroke();
+
+            // Lõi trắng sáng của chùm tia electron
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(targetX, gunBotY);
+            ctx.lineTo(targetX, targetY);
+            ctx.stroke();
+
+            // Nếu ở chế độ Sóng vật chất: vẽ các gợn sóng De Broglie lan truyền dọc chùm tia tới
+            if (state.mode === 'wave') {
+                const waveStep = 8 + (lambdaDB - 1.3) * 10;
+                const shift = (state.time * (0.9 + state.voltage / 60)) % waveStep;
+                ctx.strokeStyle = 'rgba(165, 243, 252, 0.65)';
+                ctx.lineWidth = 1.2;
+                for (let y = gunBotY + shift; y < targetY - 6; y += waveStep) {
+                    ctx.beginPath();
+                    ctx.moveTo(targetX - 7, y);
+                    ctx.lineTo(targetX + 7, y);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+
+            // 5. VẼ TRƯỜNG SÓNG TÁN XẠ / CHÙM HẠT TÁN XẠ TỪ BIA NIKEN
+            if (state.mode === 'wave') {
+                // Vẽ các mặt sóng De Broglie bán cầu lan tỏa từ tâm bia Niken & chùm tia nhiễu xạ cực đại
+                const peakDeg = getPeakAngleForVoltage(state.voltage);
+                const peakRad = (peakDeg * Math.PI) / 180;
+                const waveStep = 10 + (lambdaDB - 1.3) * 12;
+                const shift = (state.time * (0.9 + state.voltage / 60)) % waveStep;
+
+                ctx.save();
+                // Các mặt sóng bán cầu mờ lan tỏa đều
+                for (let r = shift + 10; r < arcRadius - 8; r += waveStep) {
+                    const alpha = Math.max(0.03, 0.25 * (1 - r / arcRadius));
+                    ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
+                    ctx.lineWidth = 1.1;
+                    ctx.beginPath();
+                    ctx.arc(targetX, targetY, r, -Math.PI * 0.48, -Math.PI * 0.04);
+                    ctx.stroke();
+                }
+
+                // Chùm tia nhiễu xạ giao thoa tăng cường mạnh hướng theo góc cực đại Bragg (peakDeg)
+                const peakDirX = Math.sin(peakRad);
+                const peakDirY = -Math.cos(peakRad);
+                const lobeGrad = ctx.createLinearGradient(
+                    targetX, targetY,
+                    targetX + peakDirX * (arcRadius - 6),
+                    targetY + peakDirY * (arcRadius - 6)
+                );
+                lobeGrad.addColorStop(0, 'rgba(52, 211, 153, 0.85)');
+                lobeGrad.addColorStop(0.6, 'rgba(34, 211, 238, 0.42)');
+                lobeGrad.addColorStop(1, 'rgba(34, 211, 238, 0.08)');
+
+                ctx.fillStyle = lobeGrad;
+                ctx.beginPath();
+                ctx.moveTo(targetX, targetY);
+                ctx.arc(targetX, targetY, arcRadius - 6, -Math.PI / 2 + peakRad - 0.11, -Math.PI / 2 + peakRad + 0.11);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            } else {
+                // Chế độ Hạt cổ điển: các hạt electron nảy ra tán xạ ngẫu nhiên mọi góc
+                ctx.save();
+                beamParticles.forEach(p => {
+                    p.t += p.speed;
+                    if (p.t > 1) {
+                        p.t = 0;
+                        p.scatterAngle = 15 + Math.random() * 70;
+                    }
+                    const sRad = (p.scatterAngle * Math.PI) / 180;
+                    const dist = p.t * (arcRadius - 10);
+                    const px = targetX + Math.sin(sRad) * dist;
+                    const py = targetY - Math.cos(sRad) * dist;
+
+                    ctx.fillStyle = `rgba(251, 191, 36, ${0.75 * (1 - p.t)})`;
+                    ctx.beginPath();
+                    ctx.arc(px, py, 2.2, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+            }
+
+            // 6. VẼ BIA TINH THỂ NIKEN ĐƠN CHẤT (NI SINGLE CRYSTAL) TẠI (targetX, targetY)
+            drawNickelCrystalTarget(ctx, targetX, targetY);
+
+            // 7. VẼ ĐẦU DÒ FARADAY (FARADAY CUP DETECTOR) & ĐIỆN KẾ ĐO CƯỜNG ĐỘ
+            drawFaradayDetector(ctx, targetX, targetY, arcRadius, phiRad, intensity);
+        }
+
+        /**
+         * Vẽ Súng bắn Electron (Dây tóc nung đỏ, Catốt, Lưới hội tụ & Anốt gia tốc)
+         */
+        function drawElectronGun(ctx, cx, topY, botY) {
+            const w = 44;
+            const h = botY - topY;
+
+            // Vỏ trụ kim loại súng electron
+            const shellGrad = ctx.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0);
+            shellGrad.addColorStop(0, '#1e293b');
+            shellGrad.addColorStop(0.3, '#475569');
+            shellGrad.addColorStop(0.7, '#334155');
+            shellGrad.addColorStop(1, '#0f172a');
+
+            ctx.fillStyle = shellGrad;
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.roundRect(cx - w / 2, topY, w, h - 10, 5);
+            ctx.fill();
+            ctx.stroke();
+
+            // Dây tóc nung đỏ phát xạ nhiệt electron bên trong
+            ctx.strokeStyle = '#fb923c';
+            ctx.shadowColor = '#f97316';
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx - 8, topY + 12);
+            ctx.lineTo(cx - 4, topY + 20);
+            ctx.lineTo(cx, topY + 13);
+            ctx.lineTo(cx + 4, topY + 20);
+            ctx.lineTo(cx + 8, topY + 12);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Hai bản cực Anốt gia tốc U ở đầu ra tạo khe hẹp chuẩn trực
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(cx - w / 2 + 4, botY - 10, w / 2 - 8, 8);
+            ctx.fillRect(cx + 4, botY - 10, w / 2 - 8, 8);
+
+            // Nhãn Súng Electron
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '600 11px "Inter", sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText('Súng Electron', cx - w / 2 - 10, topY + 22);
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.fillText(`U = ${state.voltage.toFixed(0)}V`, cx - w / 2 - 10, topY + 36);
+        }
+
+        /**
+         * Vẽ Bia tinh thể Niken đơn chất (Ni Crystal) trên giá xoay
+         */
+        function drawNickelCrystalTarget(ctx, cx, cy) {
+            const blockW = 68;
+            const blockH = 22;
+
+            // Giá đỡ kim loại phía dưới tinh thể
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(cx - 10, cy + blockH, 20, 26);
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            ctx.roundRect(cx - 26, cy + blockH + 22, 52, 8, 3);
+            ctx.fill();
+
+            // Khối tinh thể Niken ánh kim bạc xanh
+            const niGrad = ctx.createLinearGradient(cx - blockW / 2, cy, cx + blockW / 2, cy + blockH);
+            niGrad.addColorStop(0, '#94a3b8');
+            niGrad.addColorStop(0.5, '#cbd5e1');
+            niGrad.addColorStop(1, '#475569');
+
+            ctx.fillStyle = niGrad;
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.roundRect(cx - blockW / 2, cy, blockW, blockH, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            // Các chấm nguyên tử Niken xếp hàng đều đặn trên mặt tinh thể
+            ctx.fillStyle = '#0f172a';
+            for (let row = 0; row < 2; row++) {
+                for (let col = -4; col <= 4; col++) {
+                    ctx.beginPath();
+                    ctx.arc(cx + col * 6.5, cy + 6 + row * 8, 1.8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Điểm phát sáng tại tâm va chạm chùm electron
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#22d3ee';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '600 11px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Tinh thể Niken (Ni)', cx, cy + blockH + 44);
+        }
+
+        /**
+         * Vẽ Đầu dò Faraday (Faraday Cup) trượt trên cung tròn & chỉ thị cường độ dòng điện kế
+         */
+        function drawFaradayDetector(ctx, cx, cy, arcR, phiRad, intensity) {
+            const dirX = Math.sin(phiRad);
+            const dirY = -Math.cos(phiRad);
+
+            const detX = cx + dirX * arcR;
+            const detY = cy + dirY * arcR;
+
+            // Thanh tay đòn cơ khí nối từ tâm bia tới đầu dò Faraday
+            ctx.strokeStyle = 'rgba(100, 116, 139, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx + dirX * 26, cy + dirY * 26);
+            ctx.lineTo(detX, detY);
+            ctx.stroke();
+
+            // Vẽ hộp thu Faraday Cup xoay đúng hướng về tâm bia Niken
+            ctx.save();
+            ctx.translate(detX, detY);
+            ctx.rotate(phiRad); // Khi phi = 0, hướng thẳng đứng; xoay góc phi theo chiều kim đồng hồ
+
+            // Quầng phát sáng khi thu được dòng electron mạnh
+            if (intensity > 0.25) {
+                const glow = ctx.createRadialGradient(0, 12, 2, 0, 12, 26);
+                glow.addColorStop(0, `rgba(52, 211, 153, ${intensity * 0.7})`);
+                glow.addColorStop(1, 'rgba(52, 211, 153, 0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(0, 12, 26, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Vỏ cốc thu Faraday kim loại
+            ctx.fillStyle = state.isDragging ? '#0284c7' : '#1e293b';
+            ctx.strokeStyle = state.isDragging ? '#ffffff' : '#38bdf8';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.roundRect(-14, -22, 28, 34, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            // Khe thu electron phía mặt hướng về bia Niken
+            ctx.fillStyle = intensity > 0.5 ? '#34d399' : '#0f172a';
+            ctx.fillRect(-7, 7, 14, 5);
+
+            // Thanh mức LED hiển thị trực tiếp ngay trên lưng đầu dò Faraday
+            const meterH = 22 * intensity;
+            ctx.fillStyle = intensity > 0.75 ? '#34d399' : '#22d3ee';
+            ctx.fillRect(-4, 2 - meterH, 8, meterH);
+
+            ctx.restore();
+
+            // Nhãn thông tin đầu dò Faraday bên cạnh
+            const labelX = detX + dirX * 38;
+            const labelY = detY + dirY * 38;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '600 11px "Inter", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Đầu dò Faraday', labelX - 10, labelY - 4);
+            ctx.fillStyle = intensity > 0.75 ? '#34d399' : '#38bdf8';
+            ctx.font = '600 10px "JetBrains Mono", monospace';
+            ctx.fillText(`φ=${state.angleDeg.toFixed(1)}° | I=${Math.round(intensity * 100)}%`, labelX - 10, labelY + 10);
+        }
+
+        /**
+         * CHẾ ĐỘ 1B: SOI VI MÔ MẠNG TINH THỂ NIKEN (HIỂN THỊ 2 LỚP NGUYÊN TỬ, KHOẢNG CÁCH d = 2.15 Å & HIỆU ĐƯỜNG ĐI ΔL = d·sin(φ))
+         */
+        function drawMicroscopicCrystalView(ctx, w, h) {
+            const phiRad = (state.angleDeg * Math.PI) / 180;
+            const lambdaDB = getDeBroglieAngstrom(state.voltage);
+            const deltaL = getBraggAngstrom(state.angleDeg); // d * sin(phi)
+
+            // Tọa độ hai nguyên tử Niken lân cận trên bề mặt: Atom A (trái) và Atom B (phải)
+            const centerY = h * 0.62;
+            const atomSpacingPx = Math.min(135, w * 0.24); // Tương ứng khoảng cách mặt mạng d = 2.15 Å
+            const atomAX = w * 0.36;
+            const atomBX = atomAX + atomSpacingPx;
+
+            // Tiêu đề góc vi mô
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '600 11px "JetBrains Mono", monospace';
+            ctx.textAlign = 'right';
+            ctx.fillText('PHÓNG ĐẠI CẤP NGUYÊN TỬ (10¹⁰×)', w - 16, 24);
+
+            // 1. Vẽ mạng lưới các nguyên tử Niken (2 hàng nguyên tử)
+            const cols = [-2, -1, 0, 1, 2, 3];
+            for (let row = 0; row < 2; row++) {
+                const ay = centerY + row * (atomSpacingPx * 0.85);
+                // Đường liên kết mạng tinh thể mờ
+                ctx.strokeStyle = 'rgba(71, 85, 105, 0.35)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(atomAX - atomSpacingPx * 2.2, ay);
+                ctx.lineTo(atomAX + atomSpacingPx * 3.2, ay);
+                ctx.stroke();
+
+                cols.forEach(c => {
+                    const ax = atomAX + c * atomSpacingPx;
+                    if (ax < 20 || ax > w - 20) return;
+
+                    const isHighlighted = (row === 0 && (c === 0 || c === 1));
+                    const r = isHighlighted ? 17 : 13;
+
+                    const grad = ctx.createRadialGradient(ax - r * 0.3, ay - r * 0.3, 2, ax, ay, r);
+                    if (isHighlighted) {
+                        grad.addColorStop(0, '#a5f3fc');
+                        grad.addColorStop(0.5, '#0284c7');
+                        grad.addColorStop(1, '#0f172a');
+                    } else {
+                        grad.addColorStop(0, '#64748b');
+                        grad.addColorStop(0.6, '#1e293b');
+                        grad.addColorStop(1, '#090d16');
+                    }
+
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(ax, ay, r, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '600 10px "JetBrains Mono", monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('Ni', ax, ay);
+                });
+            }
+
+            // Chú thích khoảng cách mặt mạng d = 2.15 Å giữa nguyên tử A và B
+            const dimY = centerY + 32;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.moveTo(atomAX, dimY - 5);
+            ctx.lineTo(atomAX, dimY + 5);
+            ctx.moveTo(atomBX, dimY - 5);
+            ctx.lineTo(atomBX, dimY + 5);
+            ctx.moveTo(atomAX, dimY);
+            ctx.lineTo(atomBX, dimY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = '600 11px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('d = 2.15 Å', (atomAX + atomBX) / 2, dimY + 14);
+
+            // 2. VẼ HAI TIA SÓNG ELECTRON TỚI SONG SONG (CHIẾU VUÔNG GÓC TỪ TRÊN XUỐNG A VÀ B)
+            const topY = 44;
+            const drawIncidentRay = (rx, label) => {
+                ctx.strokeStyle = '#22d3ee';
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(rx, topY);
+                ctx.lineTo(rx, centerY - 17);
+                ctx.stroke();
+
+                // Mũi tên hướng xuống
+                ctx.fillStyle = '#22d3ee';
+                ctx.beginPath();
+                ctx.moveTo(rx, topY + 45);
+                ctx.lineTo(rx - 5, topY + 35);
+                ctx.lineTo(rx + 5, topY + 35);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#a5f3fc';
+                ctx.font = '600 11px "Inter", sans-serif';
+                ctx.fillText(label, rx, topY - 10);
+            };
+            drawIncidentRay(atomAX, 'Tia tới 1');
+            drawIncidentRay(atomBX, 'Tia tới 2');
+
+            // Mặt sóng tới nằm ngang
+            ctx.strokeStyle = 'rgba(34, 211, 238, 0.45)';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(atomAX - 30, topY + 20);
+            ctx.lineTo(atomBX + 30, topY + 20);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 3. VẼ HAI TIA TÁN XẠ SONG SONG HƯỚNG THEO GÓC φ VỀ ĐẦU DÒ FARADAY
+            const dirX = Math.sin(phiRad);
+            const dirY = -Math.cos(phiRad);
+            const rayLen = Math.min(w * 0.48, h * 0.46);
+
+            const endAX = atomAX + dirX * rayLen;
+            const endAY = centerY + dirY * rayLen;
+            const endBX = atomBX + dirX * rayLen;
+            const endBY = centerY + dirY * rayLen;
+
+            // Vẽ tia tán xạ 1 (từ A) và tia tán xạ 2 (từ B)
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(atomAX, centerY);
+            ctx.lineTo(endAX, endAY);
+            ctx.moveTo(atomBX, centerY);
+            ctx.lineTo(endBX, endBY);
+            ctx.stroke();
+
+            // 4. HÌNH HỌC HIỆU QUANG TRÌNH ΔL = d · sin(φ)
+            // Hạ đường vuông góc từ nguyên tử B (atomBX, centerY) lên tia tán xạ 1 xuất phát từ A:
+            // Hình chiếu của vector AB = (d, 0) lên phương tia tán xạ (sin(phi), -cos(phi)) có độ dài d * sin(phi)!
+            const footX = atomAX + dirX * (atomSpacingPx * Math.sin(phiRad));
+            const footY = centerY + dirY * (atomSpacingPx * Math.sin(phiRad));
+
+            // Đường vuông góc nét đứt từ B tới chân đường cao H trên tia tán xạ 1
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.setLineDash([3, 3]);
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.moveTo(atomBX, centerY);
+            ctx.lineTo(footX, footY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Đoạn hiệu quang trình ΔL = A -> H tô nổi màu vàng hổ phách rực rỡ!
+            ctx.strokeStyle = '#fbbf24';
+            ctx.shadowColor = '#fbbf24';
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 4.2;
+            ctx.beginPath();
+            ctx.moveTo(atomAX, centerY);
+            ctx.lineTo(footX, footY);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Vẽ sóng De Broglie dao động dọc theo hai tia tán xạ để minh họa giao thoa đồng pha / lệch pha
+            if (state.mode === 'wave') {
+                // Tỷ lệ bước sóng hiển thị theo lambdaDB thực tế
+                const wavePx = (lambdaDB / D_NICKEL_A) * atomSpacingPx;
+                const drawWaveOnRay = (sx, sy) => {
+                    ctx.save();
+                    ctx.translate(sx, sy);
+                    ctx.rotate(phiRad - Math.PI / 2);
+                    ctx.strokeStyle = 'rgba(110, 231, 183, 0.85)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    for (let dist = 0; dist <= rayLen; dist += 2) {
+                        const phase = (2 * Math.PI * dist) / wavePx - state.time * 0.14;
+                        const offset = Math.sin(phase) * 7;
+                        if (dist === 0) ctx.moveTo(dist, offset);
+                        else ctx.lineTo(dist, offset);
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                };
+                drawWaveOnRay(atomAX, centerY);
+                drawWaveOnRay(atomBX, centerY);
+            }
+
+            // Hộp công thức vật lý Bragg trực quan ngay trên Canvas vi mô
+            const isConstructive = Math.abs(deltaL - lambdaDB) < 0.08;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.strokeStyle = isConstructive ? '#34d399' : '#475569';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.roundRect(14, 42, 235, 68, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = '600 11px "JetBrains Mono", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillText(`Hiệu đường đi ΔL = d·sin(${state.angleDeg.toFixed(0)}°) = ${deltaL.toFixed(3)} Å`, 24, 62);
+            ctx.fillStyle = '#22d3ee';
+            ctx.fillText(`Bước sóng De Broglie λ     = ${lambdaDB.toFixed(3)} Å`, 24, 80);
+            ctx.fillStyle = isConstructive ? '#34d399' : '#94a3b8';
+            ctx.fillText(isConstructive ? '⇒ ΔL ≈ 1·λ : CỘNG HƯỞNG ĐỒNG PHA!' : '⇒ ΔL ≠ λ : LỆCH PHA GIAO THOA', 24, 98);
+        }
+
+        /**
+         * VẼ KHUNG CẢNH 2: BIỂU ĐỒ HOA HỒNG PHÂN CỰC (POLAR DIAGRAM 1927) & ĐỒ THỊ CƯỜNG ĐỘ I(φ)
+         */
+        function drawPolarAndGraphScene() {
+            const w = polarCanvas.clientWidth;
+            const h = polarCanvas.clientHeight;
+            const ctx = pCtx;
+
+            ctx.fillStyle = '#020409';
+            ctx.fillRect(0, 0, w, h);
+
+            // Chia Canvas phải làm 2 phần cân đối:
+            // - Phần trên (56% chiều cao): Biểu đồ hoa hồng phân cực (Polar Plot kinh điển của Davisson & Germer 1927)
+            // - Phần dưới (44% chiều cao): Đồ thị cường độ chùm electron I(φ) theo góc φ từ 20° đến 80°
+            const splitY = h * 0.56;
+
+            drawPolarRoseDiagram(ctx, w, splitY);
+            drawCartesianIntensityPlot(ctx, w, splitY, h);
+        }
+
+        /**
+         * Vẽ biểu đồ hoa hồng phân cực (Polar Plot) hiển thị mũi nhọn cực đại tại 50° (ở 54V)
+         */
+        function drawPolarRoseDiagram(ctx, w, regionH) {
+            const originX = w * 0.26;
+            const originY = regionH - 24;
+            const maxR = Math.min(w * 0.62, regionH - 42);
+
+            // Vẽ các vòng tròn đồng tâm biểu diễn mức cường độ (25%, 50%, 75%, 100%)
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.45)';
+            ctx.lineWidth = 1;
+            for (let step = 1; step <= 4; step++) {
+                const r = (step / 4) * maxR;
+                ctx.beginPath();
+                ctx.arc(originX, originY, r, -Math.PI / 2, 0);
+                ctx.stroke();
+            }
+
+            // Vẽ các tia chia góc từ 0° (phương chùm tia tới) tới 90° (bề mặt tinh thể)
+            ctx.font = '10px "JetBrains Mono", monospace';
+            for (let deg = 0; deg <= 90; deg += 15) {
+                const rad = (deg * Math.PI) / 180;
+                const dx = Math.sin(rad);
+                const dy = -Math.cos(rad);
+
+                ctx.strokeStyle = deg === 50 ? 'rgba(52, 211, 153, 0.35)' : 'rgba(51, 65, 85, 0.45)';
+                ctx.beginPath();
+                ctx.moveTo(originX, originY);
+                ctx.lineTo(originX + dx * maxR, originY + dy * maxR);
+                ctx.stroke();
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${deg}°`, originX + dx * (maxR + 14), originY + dy * (maxR + 14));
+            }
+
+            // Mặt phẳng tinh thể Niken nằm ngang tại originY
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(originX - 18, originY);
+            ctx.lineTo(originX + maxR + 12, originY);
+            ctx.stroke();
+
+            // Mũi tên chùm tia tới thẳng đứng từ trên xuống origin
+            ctx.strokeStyle = '#22d3ee';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(originX, originY - maxR - 14);
+            ctx.lineTo(originX, originY);
+            ctx.stroke();
+
+            // VẼ ĐƯỜNG CONG HOA HỒNG PHÂN CỰC I(φ)
+            const isWave = (state.mode === 'wave');
+            const strokeCol = isWave ? '#34d399' : '#fbbf24';
+            const fillCol = isWave ? 'rgba(52, 211, 153, 0.25)' : 'rgba(251, 191, 36, 0.22)';
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            for (let deg = 10; deg <= 88; deg += 0.5) {
+                const rad = (deg * Math.PI) / 180;
+                const val = computeScatteredIntensity(deg, state.voltage);
+                const r = val * maxR;
+                const px = originX + Math.sin(rad) * r;
+                const py = originY - Math.cos(rad) * r;
+                ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = fillCol;
+            ctx.fill();
+
+            ctx.strokeStyle = strokeCol;
+            ctx.shadowColor = strokeCol;
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 2.4;
+            ctx.stroke();
+            ctx.restore();
+
+            // Vẽ tia chỉ thị góc đầu dò Faraday hiện tại & điểm đo trên đường cong phân cực
+            const curRad = (state.angleDeg * Math.PI) / 180;
+            const curVal = computeScatteredIntensity(state.angleDeg, state.voltage);
+            const curR = curVal * maxR;
+            const ptX = originX + Math.sin(curRad) * curR;
+            const ptY = originY - Math.cos(curRad) * curR;
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(originX + Math.sin(curRad) * maxR, originY - Math.cos(curRad) * maxR);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = strokeCol;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(ptX, ptY, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Nhãn giải thích Polar Plot
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '600 11px "Inter", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Biểu đồ phân cực I(φ)', 14, 20);
+            ctx.fillStyle = isWave ? '#34d399' : '#fbbf24';
+            ctx.font = '10px "JetBrains Mono", monospace';
+            if (isWave) {
+                const peakDeg = getPeakAngleForVoltage(state.voltage);
+                ctx.fillText(`Đỉnh nhiễu xạ: φ = ${peakDeg.toFixed(1)}°`, 14, 35);
+            } else {
+                ctx.fillText('Tán xạ hạt đều (Không có đỉnh)', 14, 35);
+            }
+        }
+
+        /**
+         * Vẽ đồ thị cường độ chùm electron I(φ) theo góc tán xạ φ (20° -> 80°) ở nửa dưới
+         */
+        function drawCartesianIntensityPlot(ctx, w, topStart, totalH) {
+            const padL = 38;
+            const padR = 18;
+            const padT = topStart + 18;
+            const padB = totalH - 26;
+            const plotW = w - padL - padR;
+            const plotH = padB - padT;
+
+            // Khung đồ thị
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+            ctx.fillRect(padL, padT, plotW, plotH);
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(padL, padT, plotW, plotH);
+
+            // Vạch chia trục hoành φ: 20° -> 80°
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            for (let deg = 20; deg <= 80; deg += 10) {
+                const x = padL + ((deg - 20) / 60) * plotW;
+                ctx.strokeStyle = deg === 50 ? 'rgba(52, 211, 153, 0.3)' : 'rgba(51, 65, 85, 0.4)';
+                ctx.beginPath();
+                ctx.moveTo(x, padT);
+                ctx.lineTo(x, padB);
+                ctx.stroke();
+
+                ctx.fillStyle = deg === 50 ? '#34d399' : '#94a3b8';
+                ctx.fillText(`${deg}°`, x, padB + 14);
+            }
+
+            // Nhãn trục tung I(φ)
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'left';
+            ctx.fillText('Cường độ dòng điện kế I(φ)', padL + 6, padT + 13);
+
+            // Đường cong I(φ)
+            const isWave = (state.mode === 'wave');
+            const lineCol = isWave ? '#22d3ee' : '#fbbf24';
+
+            const grad = ctx.createLinearGradient(0, padT, 0, padB);
+            grad.addColorStop(0, isWave ? 'rgba(34, 211, 238, 0.42)' : 'rgba(251, 191, 36, 0.35)');
+            grad.addColorStop(1, 'rgba(2, 4, 9, 0.02)');
+
+            ctx.beginPath();
+            ctx.moveTo(padL, padB);
+            for (let px = 0; px <= plotW; px += 1.5) {
+                const deg = 20 + (px / plotW) * 60;
+                const val = computeScatteredIntensity(deg, state.voltage);
+                const py = padB - val * (plotH - 18);
+                ctx.lineTo(padL + px, py);
+            }
+            ctx.lineTo(padL + plotW, padB);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.beginPath();
+            for (let px = 0; px <= plotW; px += 1.5) {
+                const deg = 20 + (px / plotW) * 60;
+                const val = computeScatteredIntensity(deg, state.voltage);
+                const py = padB - val * (plotH - 18);
+                if (px === 0) ctx.moveTo(padL + px, py);
+                else ctx.lineTo(padL + px, py);
+            }
+            ctx.strokeStyle = lineCol;
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+
+            // Con trỏ vị trí góc φ hiện tại của đầu dò Faraday
+            const curX = padL + ((state.angleDeg - 20) / 60) * plotW;
+            const curVal = computeScatteredIntensity(state.angleDeg, state.voltage);
+            const curY = padB - curVal * (plotH - 18);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.setLineDash([3, 2]);
+            ctx.beginPath();
+            ctx.moveTo(curX, padT);
+            ctx.lineTo(curX, padB);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = lineCol;
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(curX, curY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        /**
+         * Cập nhật toàn bộ chỉ số Header, thanh trượt & trạng thái giao diện
+         */
+        function updateUI() {
+            const lambdaDB = getDeBroglieAngstrom(state.voltage);
+            const lambdaBragg = getBraggAngstrom(state.angleDeg);
+            const vel = getElectronVelocityMmPs(state.voltage);
+            const intensity = computeScatteredIntensity(state.angleDeg, state.voltage);
+            const intensityPct = intensity * 100;
+
+            // 1. Header Readouts
+            hdrVoltage.textContent = `${state.voltage.toFixed(1)} V`;
+            hdrDeBroglie.textContent = `${lambdaDB.toFixed(3)} Å`;
+            hdrBragg.textContent = `${lambdaBragg.toFixed(3)} Å`;
+            hdrVelocity.textContent = `${vel.toFixed(2)} ×10⁶ m/s`;
+
+            // 2. Sliders & Galvanometer
+            valVoltage.textContent = `${state.voltage.toFixed(1)} V`;
+            voltageSlider.value = state.voltage;
+
+            valAngle.textContent = `${state.angleDeg.toFixed(1)}°`;
+            angleSlider.value = state.angleDeg;
+
+            galvanoText.textContent = `Dòng dò: ${intensityPct.toFixed(1)} µA`;
+            hudCurrentReadout.textContent = `I(${state.angleDeg.toFixed(1)}°) = ${intensityPct.toFixed(1)}%`;
+
+            // 3. Resonance Badge Status
+            if (state.mode === 'particle') {
+                resonanceBadge.textContent = 'CHẾ ĐỘ HẠT CỔ ĐIỂN – TÁN XẠ NGẪU NHIÊN KHÔNG GIAO THOA';
+                resonanceBadge.className = 'px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/45 backdrop-blur-md text-[11px] font-mono font-semibold text-amber-300';
+                modeTag.textContent = 'HẠT CỔ ĐIỂN';
+                modeTag.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+            } else {
+                modeTag.textContent = 'SÓNG VẬT CHẤT';
+                modeTag.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30';
+
+                if (Math.abs(state.voltage - 54.0) <= 1.5 && Math.abs(state.angleDeg - 50.0) <= 2.0) {
+                    resonanceBadge.textContent = 'CỰC ĐẠI NHIỄU XẠ BẬC 1 (φ = 50°, U = 54V • d·sinφ ≈ λ)';
+                    resonanceBadge.className = 'px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/45 backdrop-blur-md text-[11px] font-mono font-semibold text-emerald-300';
+                } else if (intensityPct >= 75) {
+                    resonanceBadge.textContent = `ĐỈNH CỘNG HƯỞNG BRAGG (φ = ${state.angleDeg.toFixed(1)}°, U = ${state.voltage.toFixed(0)}V)`;
+                    resonanceBadge.className = 'px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/45 backdrop-blur-md text-[11px] font-mono font-semibold text-cyan-300';
+                } else {
+                    resonanceBadge.textContent = `LỆCH ĐIỀU KIỆN BRAGG (ΔL = ${lambdaBragg.toFixed(2)}Å vs λ = ${lambdaDB.toFixed(2)}Å)`;
+                    resonanceBadge.className = 'px-2.5 py-1 rounded-lg bg-slate-800/90 border border-slate-700 backdrop-blur-md text-[11px] font-mono font-semibold text-slate-300';
+                }
+            }
+
+            // 4. Mode Buttons
+            if (state.mode === 'wave') {
+                btnWaveMode.className = 'py-1.5 px-2 rounded-lg text-xs font-semibold transition-all bg-cyan-500 text-slate-950 shadow';
+                btnParticleMode.className = 'py-1.5 px-2 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white';
+            } else {
+                btnParticleMode.className = 'py-1.5 px-2 rounded-lg text-xs font-semibold transition-all bg-amber-500 text-slate-950 shadow';
+                btnWaveMode.className = 'py-1.5 px-2 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white';
+            }
+
+            // 5. Micro View Button
+            if (state.microView) {
+                btnMicroView.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border active:scale-95 bg-cyan-500/20 text-cyan-300 border-cyan-500/50';
+                microIcon.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+                microText.textContent = 'Soi vi mô mạng tinh thể Ni (d = 2.15 Å): BẬT';
+            } else {
+                btnMicroView.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border active:scale-95 bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/40';
+                microIcon.className = 'w-2 h-2 rounded-full bg-cyan-400';
+                microText.textContent = 'Soi vi mô mạng tinh thể Ni (d = 2.15 Å): TẮT';
+            }
+
+            drawPolarAndGraphScene();
+        }
+
+        /**
+         * Xử lý kéo thả trực tiếp Đầu dò Faraday trên cung tròn buồng chân không
+         */
+        function updateAngleFromPointer(clientX, clientY) {
+            if (state.microView) return;
+            const rect = chamberCanvas.getBoundingClientRect();
+            const px = clientX - rect.left;
+            const py = clientY - rect.top;
+
+            const { targetX, targetY } = getChamberMetrics(rect.width, rect.height);
+            const dx = px - targetX;
+            const dy = targetY - py; // Hướng lên trên là dương
+
+            if (dx <= 0 && dy <= 0) return;
+
+            let deg = (Math.atan2(dx, Math.max(1, dy)) * 180) / Math.PI;
+            deg = Math.max(20, Math.min(80, deg));
+
+            // Hít nhẹ vào mốc 50.0° khi kéo tới rất gần
+            if (Math.abs(deg - 50.0) < 0.8) deg = 50.0;
+
+            state.angleDeg = Math.round(deg * 2) / 2;
+            updateUI();
+        }
+
+        chamberCanvas.addEventListener('mousedown', (e) => {
+            if (state.microView) return;
+            state.isDragging = true;
+            updateAngleFromPointer(e.clientX, e.clientY);
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (state.isDragging) {
+                updateAngleFromPointer(e.clientX, e.clientY);
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            state.isDragging = false;
+        });
+
+        chamberCanvas.addEventListener('touchstart', (e) => {
+            if (state.microView) return;
+            if (e.touches.length > 0) {
+                state.isDragging = true;
+                updateAngleFromPointer(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+        window.addEventListener('touchmove', (e) => {
+            if (state.isDragging && e.touches.length > 0) {
+                updateAngleFromPointer(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+        window.addEventListener('touchend', () => {
+            state.isDragging = false;
+        });
+
+        /**
+         * Vòng lặp hoạt ảnh 60fps
+         */
+        function animate() {
+            state.time += 1;
+            drawChamberScene();
+            requestAnimationFrame(animate);
+        }
+
+        // Lắng nghe sự kiện điều khiển
+        voltageSlider.addEventListener('input', (e) => {
+            state.voltage = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        angleSlider.addEventListener('input', (e) => {
+            state.angleDeg = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        btnPreset54V.addEventListener('click', () => {
+            state.voltage = 54.0;
+            state.angleDeg = 50.0;
+            updateUI();
+        });
+
+        btnWaveMode.addEventListener('click', () => {
+            state.mode = 'wave';
+            updateUI();
+        });
+
+        btnParticleMode.addEventListener('click', () => {
+            state.mode = 'particle';
+            updateUI();
+        });
+
+        btnMicroView.addEventListener('click', () => {
+            state.microView = !state.microView;
+            updateUI();
+        });
+
+        window.addEventListener('resize', () => {
+            resizeCanvases();
+            updateUI();
+        });
+
+        window.onload = function () {
+            resizeCanvases();
+            updateUI();
+            animate();
+        };
+    </script>
+</body>
+</html>

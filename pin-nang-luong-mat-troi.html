@@ -1,0 +1,1781 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Pin Năng Lượng Mặt Trời — Quang Năng Thành Điện Năng</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            overflow: hidden;
+            user-select: none;
+        }
+        canvas { display: block; touch-action: none; }
+        .glass-hud {
+            background: rgba(10, 18, 36, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.18);
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col justify-between">
+
+    <!-- Thanh trạng thái trên cùng -->
+    <header class="w-full glass-hud px-4 md:px-6 py-2.5 flex items-center justify-between z-30 border-b border-slate-800/80">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                <i class="fa-solid fa-solar-panel text-slate-950 text-base md:text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm md:text-base lg:text-lg tracking-wide text-white flex items-center gap-2">
+                    PIN NĂNG LƯỢNG MẶT TRỜI
+                    <span class="hidden sm:inline-block text-[11px] px-2.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30 font-semibold">SILICON P-N JUNCTION</span>
+                </h1>
+                <p class="text-[11px] text-slate-400 hidden md:block">Mô phỏng vật lý bán dẫn 2D • Hiệu ứng quang điện trong • 1920×1080</p>
+            </div>
+        </div>
+
+        <!-- Chỉ báo cảnh hiện tại -->
+        <div class="hidden xl:flex items-center space-x-3 bg-slate-900/90 px-4 py-1.5 rounded-xl border border-slate-800">
+            <span id="scene-indicator-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <span id="scene-title" class="text-xs font-semibold text-slate-200 tracking-wider uppercase">CẢNH 1: MẶT TRỜI CHIẾU SÁNG PIN</span>
+            <span id="time-badge" class="text-xs font-mono text-amber-300 bg-amber-950/60 px-2.5 py-0.5 rounded border border-amber-700/40">00.0s / 60.0s</span>
+        </div>
+
+        <!-- Chú giải hạt tải điện -->
+        <div class="flex items-center space-x-3 md:space-x-4 text-xs font-medium bg-slate-900/75 px-3 py-1.5 rounded-xl border border-slate-800">
+            <div class="flex items-center space-x-1.5">
+                <span class="w-3 h-3 rounded-full bg-yellow-300 shadow-[0_0_8px_#fde047]"></span>
+                <span class="text-slate-300">Photon (hν)</span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+                <span class="w-3 h-3 rounded-full border-2 border-orange-400"></span>
+                <span class="text-slate-300">Photon hν &lt; Eg</span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+                <span class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]"></span>
+                <span class="text-slate-300">Electron (e⁻)</span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+                <span class="w-3 h-3 rounded-full border-2 border-rose-400 shadow-[0_0_8px_#fb7185]"></span>
+                <span class="text-slate-300">Lỗ trống (h⁺)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Khung Canvas chính 16:9 -->
+    <main class="relative flex-1 min-h-0 w-full bg-slate-950 flex items-center justify-center overflow-hidden">
+        <canvas id="solarCanvas" class="w-full h-full object-contain"></canvas>
+
+        <div id="toast-box" class="absolute top-4 left-1/2 -translate-x-1/2 glass-hud px-5 py-2 rounded-xl text-xs md:text-sm font-medium text-white shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center space-x-2 border border-amber-400/40">
+            <i class="fa-solid fa-bolt text-amber-400"></i>
+            <span id="toast-text">Thông báo</span>
+        </div>
+    </main>
+
+    <!-- Bảng điều khiển -->
+    <footer class="w-full glass-hud px-4 md:px-6 py-2.5 z-30 border-t border-slate-800/80 flex flex-col space-y-2">
+        <div class="w-full flex items-center space-x-3">
+            <span class="text-xs font-mono text-slate-400 w-10 text-right" id="time-now">0.0s</span>
+            <div class="flex-1 relative h-2.5 bg-slate-800 rounded-full cursor-pointer group" id="timeline-bar" style="touch-action:none;">
+                <div class="absolute top-0 bottom-0 left-[13.33%] w-0.5 bg-slate-600/70 pointer-events-none"></div>
+                <div class="absolute top-0 bottom-0 left-[26.67%] w-0.5 bg-slate-600/70 pointer-events-none"></div>
+                <div class="absolute top-0 bottom-0 left-[43.33%] w-0.5 bg-slate-600/70 pointer-events-none"></div>
+                <div class="absolute top-0 bottom-0 left-[60%] w-0.5 bg-slate-600/70 pointer-events-none"></div>
+                <div class="absolute top-0 bottom-0 left-[76.67%] w-0.5 bg-slate-600/70 pointer-events-none"></div>
+                <div class="absolute top-0 bottom-0 left-[88.33%] w-0.5 bg-slate-600/70 pointer-events-none"></div>
+
+                <div id="timeline-fill" class="absolute top-0 left-0 h-full bg-gradient-to-r from-amber-500 via-cyan-400 to-emerald-400 rounded-full pointer-events-none" style="width: 0%;"></div>
+                <div id="timeline-thumb" class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg -translate-x-1/2 group-hover:scale-125 transition-transform pointer-events-none" style="left: 0%;"></div>
+            </div>
+            <span class="text-xs font-mono text-slate-400 w-10">60.0s</span>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center space-x-1.5 md:space-x-2">
+                <button onclick="playSim()" id="btn-play" class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold text-xs shadow-md hover:brightness-105 active:scale-95 transition-all flex items-center space-x-1.5">
+                    <i class="fa-solid fa-play"></i><span>PLAY</span>
+                </button>
+                <button onclick="pauseSim()" id="btn-pause" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 active:scale-95 transition-all flex items-center space-x-1.5">
+                    <i class="fa-solid fa-pause"></i><span>PAUSE</span>
+                </button>
+                <button onclick="replaySim()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 active:scale-95 transition-all flex items-center space-x-1.5">
+                    <i class="fa-solid fa-rotate-right"></i><span>REPLAY</span>
+                </button>
+                <button onclick="toggleAutoMode()" id="btn-auto" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold text-xs shadow active:scale-95 transition-all flex items-center space-x-1.5" title="ON: tự chuyển cảnh. OFF: lặp lại cảnh hiện tại để quan sát">
+                    <i class="fa-solid fa-film"></i><span>AUTO: ON</span>
+                </button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800 space-x-1">
+                    <span class="text-[11px] font-semibold text-amber-300 mr-1"><i class="fa-solid fa-sun mr-1"></i>LIGHT:</span>
+                    <button onclick="setLightIntensity('low')" id="light-low" class="px-2 py-0.5 text-[11px] font-semibold rounded text-slate-400 hover:text-white transition-all">Yếu</button>
+                    <button onclick="setLightIntensity('medium')" id="light-medium" class="px-2 py-0.5 text-[11px] font-semibold rounded bg-amber-500 text-slate-950 transition-all">Trung bình</button>
+                    <button onclick="setLightIntensity('high')" id="light-high" class="px-2 py-0.5 text-[11px] font-semibold rounded text-slate-400 hover:text-white transition-all">Mạnh</button>
+                </div>
+
+                <button onclick="toggleCircuit()" id="btn-circuit" class="px-3 py-1.5 rounded-lg bg-cyan-600 text-white font-bold text-xs shadow-md shadow-cyan-600/25 hover:bg-cyan-500 active:scale-95 transition-all flex items-center space-x-1.5">
+                    <i class="fa-solid fa-toggle-on" id="circuit-icon"></i>
+                    <span id="circuit-text">CIRCUIT: ON</span>
+                </button>
+            </div>
+
+            <div class="flex items-center space-x-1.5">
+                <div class="flex items-center bg-slate-900/90 px-2 py-1 rounded-lg border border-slate-800 space-x-1">
+                    <span class="text-[11px] text-slate-400 font-semibold">ZOOM:</span>
+                    <button onclick="manualZoom(-0.2)" class="px-2 py-0.5 text-xs bg-slate-800 hover:bg-slate-700 rounded text-slate-200" title="Zoom Out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                    <button onclick="manualZoom(0.2)" class="px-2 py-0.5 text-xs bg-slate-800 hover:bg-slate-700 rounded text-slate-200" title="Zoom In"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                </div>
+
+                <div class="flex items-center bg-slate-900/90 px-2 py-1 rounded-lg border border-slate-800 space-x-1">
+                    <span class="text-[11px] text-slate-400 font-semibold">SPEED:</span>
+                    <button onclick="setSpeed(0.5)" id="spd-0.5" class="px-1.5 py-0.5 text-[11px] font-semibold rounded text-slate-400 hover:text-white">0.5x</button>
+                    <button onclick="setSpeed(1.0)" id="spd-1.0" class="px-1.5 py-0.5 text-[11px] font-semibold rounded bg-blue-600 text-white">1.0x</button>
+                    <button onclick="setSpeed(1.5)" id="spd-1.5" class="px-1.5 py-0.5 text-[11px] font-semibold rounded text-slate-400 hover:text-white">1.5x</button>
+                    <button onclick="setSpeed(2.0)" id="spd-2.0" class="px-1.5 py-0.5 text-[11px] font-semibold rounded text-slate-400 hover:text-white">2.0x</button>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * MÔ PHỎNG PIN NĂNG LƯỢNG MẶT TRỜI SILICON (P-N JUNCTION)
+         * 7 cảnh, 60 giây. Mọi hiệu ứng tính theo đồng hồ mô phỏng (state.currentTime).
+         */
+        // Polyfill cho trình duyệt cũ chưa có ctx.roundRect
+        if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (Array.isArray(r)) r = r[0] || 0;
+                r = Math.min(r || 0, w / 2, h / 2);
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                this.closePath();
+            };
+        }
+
+        const canvas = document.getElementById('solarCanvas');
+        const ctx = canvas.getContext('2d');
+        const WIDTH = 1920;
+        const HEIGHT = 1080;
+
+        const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const easeInOut = t => t * t * (3 - 2 * t);
+
+        function initCanvasSize() {
+            canvas.width = WIDTH;
+            canvas.height = HEIGHT;
+            renderFrame();
+        }
+        window.addEventListener('resize', initCanvasSize);
+
+        // ==========================================
+        // LỊCH CẢNH
+        // ==========================================
+        const SCENES = [
+            { n: 1, s: 0,  e: 8  },
+            { n: 2, s: 8,  e: 16 },
+            { n: 3, s: 16, e: 26 },
+            { n: 4, s: 26, e: 36 },
+            { n: 5, s: 36, e: 46 },
+            { n: 6, s: 46, e: 53 },
+            { n: 7, s: 53, e: 60 }
+        ];
+        function getCurrentSceneNumber() {
+            const t = state.currentTime;
+            for (const sc of SCENES) if (t < sc.e) return sc.n;
+            return 7;
+        }
+
+        const SCENE_TITLES = {
+            1: 'CẢNH 1: MẶT TRỜI CHIẾU ÁNH SÁNG XUỐNG TẤM PIN',
+            2: 'CẢNH 2: CẤU TẠO CÁC LỚP TẾ BÀO QUANG ĐIỆN SILICON',
+            3: 'CẢNH 3: PHOTON HẤP THỤ & TẠO CẶP ELECTRON – LỖ TRỐNG',
+            4: 'CẢNH 4: ĐIỆN TRƯỜNG VÙNG TIẾP GIÁP P-N PHÂN TÁCH ĐIỆN TÍCH',
+            5: 'CẢNH 5: DÒNG ELECTRON QUA MẠCH NGOÀI THẮP SÁNG BÓNG ĐÈN',
+            6: 'CẢNH 6: THAY ĐỔI CƯỜNG ĐỘ ÁNH SÁNG & CÔNG SUẤT ĐẦU RA',
+            7: 'CẢNH 7: TỔNG QUAN CHUYỂN ĐỔI QUANG NĂNG → ĐIỆN NĂNG'
+        };
+
+        const CAPTIONS = {
+            1: 'Ánh sáng Mặt Trời gồm vô số photon, mỗi photon mang năng lượng E = hν. Các photon chiếu xuống tấm pin gồm nhiều tế bào quang điện silicon ghép nối tiếp. Khi mạch kín, điện năng sinh ra cấp cho bóng đèn và quạt.',
+            2: 'Cấu tạo một tế bào: kính bảo vệ → lớp chống phản xạ (giảm phản xạ từ ~30% xuống <5%) → lưới điện cực trước → silicon loại n (dư e⁻, pha P) → vùng tiếp giáp p-n → silicon loại p (dư lỗ trống, pha B) → điện cực sau. Một phần photon bị phản xạ hoặc bị lưới kim loại che khuất.',
+            3: 'Photon có hν ≥ Eg = 1,12 eV bị hấp thụ: electron nhảy từ vùng hóa trị lên vùng dẫn, để lại một lỗ trống → cặp e⁻–h⁺. Photon hồng ngoại (hν < Eg) xuyên qua, chỉ làm nóng. Nếu chưa có điện trường để tách, cặp e⁻–h⁺ sẽ tái hợp và năng lượng bị mất.',
+            4: 'Tại vùng tiếp giáp, e⁻ khuếch tán từ n sang p và lỗ trống từ p sang n, để lại các ion cố định tạo điện trường nội E hướng từ n → p. Điện trường đẩy e⁻ về phía n, đẩy lỗ trống về phía p và tách các cặp điện tích do ánh sáng sinh ra. Nếu mạch chưa nối, điện tích tích tụ ở hai lớp.',
+            5: 'Mạch kín: e⁻ ở lớp n được lưới điện cực trước (cực âm) thu, chạy qua bóng đèn và quạt (mắc song song) rồi về điện cực sau (cực dương) để tái hợp với lỗ trống. Chiều dòng điện quy ước ngược chiều chuyển động của e⁻. Bấm CIRCUIT để mở mạch: có điện áp nhưng không có dòng.',
+            6: 'Ánh sáng mạnh hơn → nhiều photon hơn → nhiều cặp e⁻–h⁺ hơn → dòng J tăng gần như tỉ lệ thuận, đèn sáng hơn, quạt quay nhanh hơn. Điện áp chỉ tăng rất chậm (theo logarit). Có thể bấm LIGHT hoặc CIRCUIT để tự thử.',
+            7: 'Tóm tắt: photon → cặp e⁻–h⁺ → điện trường p-n tách điện tích → dòng điện mạch ngoài. Hiệu suất tế bào silicon thực tế chỉ khoảng 20%: phần còn lại mất do nhiệt, photon hν < Eg không được hấp thụ, phản xạ, che khuất và tái hợp.'
+        };
+
+        // ==========================================
+        // MÔ HÌNH VẬT LÝ TẾ BÀO (phương trình diode lý tưởng)
+        // J(V) = Jsc − J0·(e^(V/Vt) − 1)
+        // ==========================================
+        const VT = 0.02585;       // điện thế nhiệt ở 300 K (V)
+        const J0 = 1e-9;          // dòng bão hòa ngược (mA/cm²)
+        const JSC_1SUN = 40;      // mA/cm² dưới 1000 W/m²
+        function cellJ(V, G) { return Math.max(0, JSC_1SUN * G - J0 * (Math.exp(V / VT) - 1)); }
+        function cellModel(G) {
+            const Jsc = JSC_1SUN * G;
+            const Voc = VT * Math.log(Jsc / J0 + 1);
+            let best = { V: 0, J: Jsc, P: 0 };
+            for (let V = 0; V <= Voc; V += 0.002) {
+                const J = cellJ(V, G);
+                const P = V * J;
+                if (P > best.P) best = { V, J, P };
+            }
+            return { G, Jsc, Voc, Vmpp: best.V, Jmpp: best.J, Pmpp: best.P, eff: best.P / (100 * G) };
+        }
+
+        const LIGHT_CONFIG = {
+            low:    { G: 0.3, photonRate: 0.35, sunRadius: 72,  rayAlpha: 0.14, label: 'Yếu (300 W/m²)' },
+            medium: { G: 0.7, photonRate: 0.70, sunRadius: 92,  rayAlpha: 0.26, label: 'Trung bình (700 W/m²)' },
+            high:   { G: 1.0, photonRate: 1.00, sunRadius: 112, rayAlpha: 0.42, label: 'Mạnh (1000 W/m²)' }
+        };
+        const MODEL = {
+            low: cellModel(LIGHT_CONFIG.low.G),
+            medium: cellModel(LIGHT_CONFIG.medium.G),
+            high: cellModel(LIGHT_CONFIG.high.G)
+        };
+        const P_REF = MODEL.high.Pmpp;
+
+        // ==========================================
+        // TRẠNG THÁI
+        // ==========================================
+        const state = {
+            isPlaying: false,
+            autoSequence: true,
+            lockedScene: null,
+            currentTime: 0.0,
+            totalDuration: 60.0,
+            speed: 1.0,
+            lightLevel: 'medium',
+            manualLight6: false,
+            circuitClosed: true,
+            manualZoomOffset: 0.0,
+            lastFrameTime: 0,
+            rafId: null,
+            bulbLevel: 0,
+            fanOmega: 0,
+            fanAngle: 0,
+            meter: { V: 0, J: 0, P: 0 },
+            lastEffLevel: 'medium'
+        };
+
+        // Cường độ sáng hiệu dụng: ở cảnh 6 (AUTO) tự thay đổi yếu → trung bình → mạnh để minh họa
+        function getLightLevel() {
+            if (getCurrentSceneNumber() === 6 && state.autoSequence && !state.manualLight6) {
+                const t = state.currentTime;
+                if (t < 48.4) return 'low';
+                if (t < 50.8) return 'medium';
+                return 'high';
+            }
+            return state.lightLevel;
+        }
+
+        // Dòng điện chỉ chạy khi mạch kín VÀ điện tích đã được tách & thu về điện cực (cảnh ≥ 5);
+        // ở cảnh 1 chờ photon từ Mặt Trời tới tấm pin (~4s).
+        function isCircuitActive(scene) {
+            if (!state.circuitClosed) return false;
+            if (scene === 1) return state.currentTime >= 4;
+            return scene >= 5;
+        }
+
+        // Camera ảo
+        const camera = { x: 960, y: 540, zoom: 1.0, targetX: 960, targetY: 540, targetZoom: 1.0 };
+
+        // ==========================================
+        // HỆ HẠT
+        // ==========================================
+        const FINGERS = [430, 560, 690, 820, 950, 1080];   // vị trí các ngón điện cực trước
+        const FINGER_HALF = 6;
+        const FINGER_TOP = 262;
+        function nearestFinger(x) {
+            let best = FINGERS[0];
+            FINGERS.forEach(f => { if (Math.abs(f - x) < Math.abs(best - x)) best = f; });
+            return best;
+        }
+
+        const skyPhotons = [];
+        const internalPhotons = [];
+        const carriers = [];          // electron & lỗ trống: {type, x, y, age, life, seed, state}
+        const sparks = [];            // hiệu ứng hấp thụ / tái hợp / thu điện tích
+        const circuitElectrons = { A: [], B: [] };  // A: nhánh bóng đèn, B: nhánh quạt (mắc song song)
+
+        // Chấm đại diện hạt tải đa số & ion pha tạp (tĩnh, chỉ để minh họa)
+        const nDots = [], pDots = [];
+        (function initDots() {
+            for (let i = 0; i < 34; i++) {
+                nDots.push({ x: 400 + Math.random() * 720, y: 322 + Math.random() * 122, ph: Math.random() * 6.28 });
+                pDots.push({ x: 400 + Math.random() * 720, y: 568 + Math.random() * 128, ph: Math.random() * 6.28 });
+            }
+        })();
+
+        function resetInternalPhoton(p, spread) {
+            p.x = 440 + Math.random() * 660;
+            p.y = spread ? 70 + Math.random() * 140 : 70 + Math.random() * 60;
+            p.vx = 0;
+            p.vy = 220 + Math.random() * 80;
+            p.state = 'fall';
+            p.shadow = Math.abs(p.x - nearestFinger(p.x)) < FINGER_HALF + 2;
+            // Độ sâu hấp thụ: giảm dần theo hàm mũ, một phần đi sâu tới lớp p
+            p.absorbY = p.ir ? 708 : 345 + 365 * Math.pow(Math.random(), 1.7);
+        }
+
+        function initParticles() {
+            skyPhotons.length = 0;
+            for (let i = 0; i < 65; i++) {
+                skyPhotons.push({ progress: Math.random(), lane: (Math.random() - 0.5) * 260, speed: 0.35 + Math.random() * 0.25 });
+            }
+            internalPhotons.length = 0;
+            for (let i = 0; i < 28; i++) {
+                const p = {
+                    ir: (i % 5 === 0),            // ~20% photon hồng ngoại: hν < Eg = 1.12 eV
+                    arcRef: (i % 14 === 1),       // ~7% bị phản xạ dư sau lớp chống phản xạ
+                    x: 0, y: 0, vx: 0, vy: 0, state: 'fall', shadow: false, absorbY: 0
+                };
+                resetInternalPhoton(p, true);
+                internalPhotons.push(p);
+            }
+            carriers.length = 0;
+            sparks.length = 0;
+            circuitElectrons.A.length = 0;
+            circuitElectrons.B.length = 0;
+            for (let i = 0; i < 14; i++) {
+                circuitElectrons.A.push({ t: i / 14 });
+                circuitElectrons.B.push({ t: (i + 0.5) / 14 });
+            }
+        }
+
+        function addSpark(x, y, color, maxR) {
+            sparks.push({ x, y, age: 0, color, maxR: maxR || 18 });
+            if (sparks.length > 120) sparks.shift();
+        }
+
+        function spawnPair(x, y) {
+            const life = 2.6 + Math.random() * 1.6;     // thời gian tái hợp nếu chưa có điện trường
+            const seed = Math.random() * 10;
+            carriers.push({ type: 'e', x, y, age: 0, life, seed, state: 'free' });
+            carriers.push({ type: 'h', x, y, age: 0, life, seed: seed + 3, state: 'free' });
+            if (carriers.length > 150) carriers.splice(0, carriers.length - 150);
+        }
+
+        // ==========================================
+        // THÔNG BÁO
+        // ==========================================
+        let toastTimer = null;
+        function showToast(msg) {
+            const box = document.getElementById('toast-box');
+            document.getElementById('toast-text').textContent = msg;
+            box.style.opacity = '1';
+            box.style.transform = 'translate(-50%, 0)';
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                box.style.opacity = '0';
+                box.style.transform = 'translate(-50%, -6px)';
+            }, 2600);
+        }
+
+        // ==========================================
+        // ĐIỀU KHIỂN GIAO DIỆN
+        // ==========================================
+        function playSim() {
+            if (state.currentTime >= state.totalDuration) {
+                state.currentTime = 0;
+                warmUp();
+            }
+            if (!state.isPlaying) {
+                state.isPlaying = true;
+                state.lastFrameTime = performance.now();
+                updateControlButtonsUI();
+                state.rafId = requestAnimationFrame(animationLoop);
+            }
+        }
+        function pauseSim() {
+            state.isPlaying = false;
+            if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
+            updateControlButtonsUI();
+            renderFrame();
+        }
+        function replaySim() {
+            state.currentTime = 0;
+            state.manualZoomOffset = 0;
+            state.manualLight6 = false;
+            if (!state.autoSequence) state.lockedScene = 1;
+            initParticles();
+            warmUp();
+            updateCameraTargets(true);
+            updateTimelineUI();
+            renderFrame();
+            playSim();
+            showToast('Chạy lại mô phỏng từ đầu (Cảnh 1).');
+        }
+        function toggleAutoMode() {
+            state.autoSequence = !state.autoSequence;
+            const btn = document.getElementById('btn-auto');
+            if (state.autoSequence) {
+                state.lockedScene = null;
+                btn.className = 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold text-xs shadow active:scale-95 transition-all flex items-center space-x-1.5';
+                btn.innerHTML = '<i class="fa-solid fa-film"></i><span>AUTO: ON</span>';
+                showToast('Chế độ tự động chuyển cảnh: BẬT');
+            } else {
+                state.lockedScene = getCurrentSceneNumber();
+                btn.className = 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 active:scale-95 transition-all flex items-center space-x-1.5';
+                btn.innerHTML = '<i class="fa-solid fa-hand"></i><span>AUTO: OFF</span>';
+                showToast('Đang lặp lại cảnh hiện tại để quan sát chi tiết.');
+            }
+        }
+        function setSpeed(spd) {
+            state.speed = spd;
+            ['0.5', '1.0', '1.5', '2.0'].forEach(s => {
+                const el = document.getElementById(`spd-${s}`);
+                el.className = (parseFloat(s) === spd)
+                    ? 'px-1.5 py-0.5 text-[11px] font-semibold rounded bg-blue-600 text-white'
+                    : 'px-1.5 py-0.5 text-[11px] font-semibold rounded text-slate-400 hover:text-white';
+            });
+            showToast(`Tốc độ hoạt hình: ${spd}x`);
+        }
+        function refreshLightButtons() {
+            const eff = getLightLevel();
+            ['low', 'medium', 'high'].forEach(lv => {
+                document.getElementById(`light-${lv}`).className = (lv === eff)
+                    ? 'px-2 py-0.5 text-[11px] font-semibold rounded bg-amber-500 text-slate-950 transition-all'
+                    : 'px-2 py-0.5 text-[11px] font-semibold rounded text-slate-400 hover:text-white transition-all';
+            });
+        }
+        function setLightIntensity(level) {
+            state.lightLevel = level;
+            if (getCurrentSceneNumber() === 6 && state.autoSequence) state.manualLight6 = true;
+            refreshLightButtons();
+            if (!state.isPlaying) { settleLoads(); renderFrame(); }
+            showToast(`Cường độ ánh sáng: ${LIGHT_CONFIG[level].label}`);
+        }
+        function toggleCircuit() {
+            state.circuitClosed = !state.circuitClosed;
+            const btn = document.getElementById('btn-circuit');
+            const icon = document.getElementById('circuit-icon');
+            const txt = document.getElementById('circuit-text');
+            if (state.circuitClosed) {
+                btn.className = 'px-3 py-1.5 rounded-lg bg-cyan-600 text-white font-bold text-xs shadow-md shadow-cyan-600/25 hover:bg-cyan-500 active:scale-95 transition-all flex items-center space-x-1.5';
+                icon.className = 'fa-solid fa-toggle-on';
+                txt.textContent = 'CIRCUIT: ON';
+                showToast('Mạch ĐÓNG: electron được thu về điện cực và chạy qua tải.');
+            } else {
+                btn.className = 'px-3 py-1.5 rounded-lg bg-rose-600 text-white font-bold text-xs shadow-md shadow-rose-600/25 hover:bg-rose-500 active:scale-95 transition-all flex items-center space-x-1.5';
+                icon.className = 'fa-solid fa-toggle-off';
+                txt.textContent = 'CIRCUIT: OFF';
+                showToast('Mạch HỞ: điện tích tích tụ hai bên, có điện áp Voc nhưng không có dòng, đèn tắt.');
+            }
+            if (!state.isPlaying) { settleLoads(); renderFrame(); }
+        }
+        function manualZoom(deltaZoom) {
+            state.manualZoomOffset = clamp(state.manualZoomOffset + deltaZoom, -0.35, 0.85);
+            updateCameraTargets(true);
+            renderFrame();
+            showToast(`Mức thu phóng Camera: ${(camera.zoom * 100).toFixed(0)}%`);
+        }
+        function updateControlButtonsUI() {
+            const playBtn = document.getElementById('btn-play');
+            const pauseBtn = document.getElementById('btn-pause');
+            if (state.isPlaying) {
+                playBtn.classList.add('ring-2', 'ring-amber-300');
+                pauseBtn.classList.remove('ring-2', 'ring-cyan-400');
+            } else {
+                playBtn.classList.remove('ring-2', 'ring-amber-300');
+                pauseBtn.classList.add('ring-2', 'ring-cyan-400');
+            }
+        }
+
+        // Tua thời gian bằng con trỏ (chuột, cảm ứng, bút), kéo thả được
+        const timelineBar = document.getElementById('timeline-bar');
+        let isScrubbing = false;
+        function scrubTimeline(clientX) {
+            const rect = timelineBar.getBoundingClientRect();
+            const ratio = clamp((clientX - rect.left) / rect.width);
+            state.currentTime = Math.min(ratio * state.totalDuration, state.totalDuration - 0.01);
+            if (!state.autoSequence) state.lockedScene = getCurrentSceneNumber();
+            warmUp();
+            updateCameraTargets(true);
+            updateTimelineUI();
+            renderFrame();
+        }
+        timelineBar.addEventListener('pointerdown', e => {
+            isScrubbing = true;
+            try { timelineBar.setPointerCapture(e.pointerId); } catch (err) {}
+            scrubTimeline(e.clientX);
+        });
+        timelineBar.addEventListener('pointermove', e => { if (isScrubbing) scrubTimeline(e.clientX); });
+        const endScrub = () => { isScrubbing = false; };
+        timelineBar.addEventListener('pointerup', endScrub);
+        timelineBar.addEventListener('pointercancel', endScrub);
+
+        // ==========================================
+        // VÒNG LẶP & VẬT LÝ
+        // ==========================================
+        function animationLoop(now) {
+            if (!state.isPlaying) return;
+            const dt = Math.min((now - state.lastFrameTime) / 1000, 0.08);
+            state.lastFrameTime = now;
+            const simDt = dt * state.speed;
+
+            state.currentTime += simDt;
+            if (state.autoSequence) {
+                if (state.currentTime >= state.totalDuration) {
+                    state.currentTime = state.totalDuration;
+                    state.isPlaying = false;
+                    updateControlButtonsUI();
+                }
+            } else {
+                // Chế độ khóa cảnh: lặp lại trong phạm vi cảnh đang chọn
+                const sc = SCENES[(state.lockedScene || getCurrentSceneNumber()) - 1];
+                if (state.currentTime >= sc.e) state.currentTime = sc.s + (state.currentTime - sc.e);
+            }
+
+            updatePhysics(simDt);
+            updateCameraTargets(false, dt);
+            updateTimelineUI();
+            renderFrame();
+
+            if (state.isPlaying) state.rafId = requestAnimationFrame(animationLoop);
+        }
+
+        function updateCameraTargets(instant, dt) {
+            const scene = getCurrentSceneNumber();
+            let baseZoom = 1.0, tx = 960, ty = 540;
+
+            if (scene === 1) {
+                const p = clamp(state.currentTime / 8);
+                tx = 960 - p * 60; ty = 540 + p * 70; baseZoom = 1.0 + p * 0.22;
+            } else if (scene === 2) {
+                tx = 820; ty = 520; baseZoom = 1.05;
+            } else if (scene === 3) {
+                tx = 800; ty = 500; baseZoom = 1.15;
+            } else if (scene === 4) {
+                tx = 780; ty = 520; baseZoom = 1.35;      // phóng vào vùng tiếp giáp, vẫn chừa chỗ cho bảng giải thích bên phải
+            } else if (scene === 5 || scene === 6) {
+                tx = 960; ty = 530; baseZoom = 0.96;
+            } else {
+                const p = clamp((state.currentTime - 53) / 7);
+                tx = 960; ty = 540; baseZoom = 1.04 - p * 0.04;
+            }
+
+            camera.targetX = tx;
+            camera.targetY = ty;
+            camera.targetZoom = clamp(baseZoom + state.manualZoomOffset, 0.65, 2.1);
+
+            if (instant) {
+                camera.x = camera.targetX; camera.y = camera.targetY; camera.zoom = camera.targetZoom;
+            } else {
+                const k = 1 - Math.exp(-6 * (dt || 1 / 60));   // không phụ thuộc tần số quét màn hình
+                camera.x += (camera.targetX - camera.x) * k;
+                camera.y += (camera.targetY - camera.y) * k;
+                camera.zoom += (camera.targetZoom - camera.zoom) * k;
+            }
+        }
+
+        function meterTarget(scene, model) {
+            if (scene < 5) return { V: 0, J: 0, P: 0 };
+            return state.circuitClosed
+                ? { V: model.Vmpp, J: model.Jmpp, P: model.Pmpp }
+                : { V: model.Voc, J: 0, P: 0 };
+        }
+
+        function settleLoads() {
+            const scene = getCurrentSceneNumber();
+            const model = MODEL[getLightLevel()];
+            state.bulbLevel = isCircuitActive(scene) ? model.Pmpp / P_REF : 0;
+            state.fanOmega = state.bulbLevel * 20;
+            state.meter = Object.assign({}, meterTarget(scene, model));
+        }
+
+        // Mô phỏng nhanh vài giây để các hạt có mặt đúng trạng thái sau khi tua/chạy lại
+        function warmUp() {
+            carriers.length = 0;
+            sparks.length = 0;
+            internalPhotons.forEach(p => resetInternalPhoton(p, true));
+            const scene = getCurrentSceneNumber();
+            if (scene >= 2 && scene <= 6) for (let i = 0; i < 70; i++) updatePhysics(0.05);
+            settleLoads();
+        }
+
+        function updatePhysics(dt) {
+            const scene = getCurrentSceneNumber();
+            const level = getLightLevel();
+            const cfg = LIGHT_CONFIG[level];
+            const model = MODEL[level];
+            const t = state.currentTime;
+
+            // 1. Photon bầu trời (cảnh 1 & 7)
+            const activeSky = Math.floor(skyPhotons.length * cfg.photonRate);
+            skyPhotons.forEach((p, idx) => {
+                if (idx >= activeSky) return;
+                p.progress += p.speed * dt;
+                if (p.progress > 1) { p.progress -= 1; p.lane = (Math.random() - 0.5) * 280; }
+            });
+
+            // 2. Photon trong cấu trúc tế bào (cảnh 2–6)
+            if (scene >= 2 && scene <= 6) {
+                const activeInternal = Math.floor(internalPhotons.length * cfg.photonRate);
+                internalPhotons.forEach((p, idx) => {
+                    if (idx >= activeInternal) return;
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+
+                    if (p.state === 'refl') {
+                        if (p.y < 60 || p.x > 1300) resetInternalPhoton(p, false);
+                        return;
+                    }
+                    // Phản xạ dư tại lớp chống phản xạ, hoặc bị ngón điện cực kim loại che khuất
+                    if ((p.arcRef || p.shadow) && p.y >= FINGER_TOP && p.state === 'fall') {
+                        p.state = 'refl';
+                        p.vx = 120 + (idx % 3) * 45;
+                        p.vy = -190;
+                        addSpark(p.x, p.y, '#e2e8f0', 12);
+                        return;
+                    }
+                    if (p.ir) {
+                        // hν < Eg: xuyên qua silicon, tới điện cực sau và biến thành nhiệt
+                        if (p.y >= 708) { addSpark(p.x, 712, '#fb923c', 20); resetInternalPhoton(p, false); }
+                        return;
+                    }
+                    if (p.y >= p.absorbY) {
+                        addSpark(p.x, p.y, '#fde047', 22);
+                        if (scene >= 3) spawnPair(p.x, p.y);
+                        resetInternalPhoton(p, false);
+                    }
+                });
+            }
+
+            // 3. Hạt tải điện
+            const fieldOn = scene >= 5 || (scene === 4 && t >= 30);
+            const collectOn = state.circuitClosed && scene >= 5;
+            updateCarriers(dt, fieldOn, collectOn);
+
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                sparks[i].age += dt;
+                if (sparks[i].age > 0.55) sparks.splice(i, 1);
+            }
+
+            // 4. Electron trong mạch ngoài: tốc độ tỉ lệ với dòng điện
+            if (isCircuitActive(scene)) {
+                const rate = 0.03 + 0.17 * (model.Jmpp / JSC_1SUN);
+                circuitElectrons.A.forEach(e => { e.t = (e.t + rate * dt) % 1; });
+                circuitElectrons.B.forEach(e => { e.t = (e.t + rate * dt) % 1; });
+            }
+
+            // 5. Tải tiêu thụ có quán tính (dây tóc nóng dần, cánh quạt tăng tốc dần)
+            const target = isCircuitActive(scene) ? model.Pmpp / P_REF : 0;
+            state.bulbLevel += (target - state.bulbLevel) * (1 - Math.exp(-dt / 0.35));
+            state.fanOmega += (target * 20 - state.fanOmega) * (1 - Math.exp(-dt / 0.8));
+            state.fanAngle += state.fanOmega * dt;
+
+            const mt = meterTarget(scene, model);
+            const km = 1 - Math.exp(-dt / 0.4);
+            state.meter.V += (mt.V - state.meter.V) * km;
+            state.meter.J += (mt.J - state.meter.J) * km;
+            state.meter.P += (mt.P - state.meter.P) * km;
+        }
+
+        function capStored(type, max) {
+            const idxs = [];
+            carriers.forEach((c, i) => { if (c.type === type && c.state === 'stored') idxs.push(i); });
+            while (idxs.length > max) {
+                // bỏ hạt cũ nhất (tuổi lớn nhất): mô tả tái hợp khi điện áp hở mạch đã bão hòa
+                let oldest = 0;
+                idxs.forEach((ci, k) => { if (carriers[ci].age > carriers[idxs[oldest]].age) oldest = k; });
+                const ci = idxs[oldest];
+                addSpark(carriers[ci].x, carriers[ci].y, '#fef08a', 14);
+                carriers.splice(ci, 1);
+                idxs.length = 0;
+                carriers.forEach((c, i) => { if (c.type === type && c.state === 'stored') idxs.push(i); });
+            }
+        }
+
+        // Vùng n: y 310–455 | Vùng nghèo: 455–555 | Vùng p: 555–710
+        function updateCarriers(dt, fieldOn, collectOn) {
+            for (let i = carriers.length - 1; i >= 0; i--) {
+                const c = carriers[i];
+                c.age += dt;
+
+                if (!fieldOn) {
+                    // Chưa có điện trường tách: chuyển động nhiệt hỗn loạn rồi tái hợp
+                    if (c.age > c.life) { addSpark(c.x, c.y, '#fef08a', 16); carriers.splice(i, 1); continue; }
+                    if (c.age < 0.35) c.y += (c.type === 'e' ? -18 : 18) * dt;
+                    c.x += Math.sin(c.age * 9 + c.seed) * 18 * dt;
+                    c.y += Math.cos(c.age * 7 + c.seed * 1.7) * 18 * dt;
+                    c.y = clamp(c.y, 335, 700);
+                    continue;
+                }
+
+                if (c.state === 'stored') {
+                    if (collectOn) c.state = 'free';
+                    else {
+                        c.x += Math.sin(c.age * 6 + c.seed) * 6 * dt;
+                        c.y += Math.cos(c.age * 5 + c.seed) * 3 * dt;
+                        continue;
+                    }
+                }
+
+                const inDep = c.y > 455 && c.y < 555;
+                const v = inDep ? 210 : 90;   // trôi nhanh trong điện trường, khuếch tán chậm ngoài vùng nghèo
+
+                if (c.type === 'e') {
+                    // e⁻ (−) bị đẩy ngược chiều E → lên vùng n → lưới điện cực trước (cực âm)
+                    if (c.y > 340) {
+                        c.y -= v * dt;
+                        c.x += Math.sin(c.age * 8 + c.seed) * 12 * dt;
+                    } else if (!collectOn) {
+                        c.state = 'stored';
+                        c.y = 340 - Math.random() * 8;
+                    } else {
+                        const fx = nearestFinger(c.x);
+                        const dx = fx - c.x;
+                        if (Math.abs(dx) > 3) c.x += Math.sign(dx) * 120 * dt;
+                        else {
+                            c.y -= 130 * dt;
+                            if (c.y <= 312) { addSpark(fx, 300, '#22d3ee', 14); carriers.splice(i, 1); continue; }
+                        }
+                    }
+                } else {
+                    // lỗ trống (+) bị đẩy cùng chiều E → xuống vùng p → điện cực sau (cực dương)
+                    if (c.y < 703) {
+                        c.y += v * dt;
+                        c.x += Math.sin(c.age * 8 + c.seed) * 12 * dt;
+                    } else if (!collectOn) {
+                        c.state = 'stored';
+                        c.y = 700 - Math.random() * 8;
+                    } else {
+                        addSpark(c.x, 712, '#fb7185', 16);   // tái hợp với e⁻ từ mạch ngoài trở về
+                        carriers.splice(i, 1);
+                        continue;
+                    }
+                }
+            }
+            capStored('e', 26);
+            capStored('h', 26);
+        }
+
+        function updateTimelineUI() {
+            const t = state.currentTime;
+            const pct = (t / state.totalDuration) * 100;
+            document.getElementById('timeline-fill').style.width = `${pct}%`;
+            document.getElementById('timeline-thumb').style.left = `${pct}%`;
+            document.getElementById('time-now').textContent = `${t.toFixed(1)}s`;
+            document.getElementById('time-badge').textContent = `${t.toFixed(1)}s / 60.0s`;
+
+            const scene = getCurrentSceneNumber();
+            document.getElementById('scene-title').textContent = SCENE_TITLES[scene];
+            if (scene !== 6) state.manualLight6 = false;
+
+            const eff = getLightLevel();
+            if (eff !== state.lastEffLevel) {
+                state.lastEffLevel = eff;
+                refreshLightButtons();
+                if (scene === 6 && state.autoSequence && !state.manualLight6) showToast(`Ánh sáng: ${LIGHT_CONFIG[eff].label}`);
+            }
+        }
+
+        // ==========================================
+        // VẼ
+        // ==========================================
+        function renderFrame() {
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            const bgGrad = ctx.createRadialGradient(960, 480, 120, 960, 540, 1250);
+            bgGrad.addColorStop(0, '#0f172a');
+            bgGrad.addColorStop(1, '#020617');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            drawLabGrid();
+
+            ctx.save();
+            ctx.translate(WIDTH / 2, HEIGHT / 2);
+            ctx.scale(camera.zoom, camera.zoom);
+            ctx.translate(-camera.x, -camera.y);
+
+            const scene = getCurrentSceneNumber();
+            if (scene === 1 || scene === 7) drawOverviewScene(scene);
+            else drawMicroscopicSolarCellScene(scene);
+            ctx.restore();
+
+            drawHUD(scene);
+
+            // Mờ chuyển cảnh giữa cảnh toàn cảnh ↔ cảnh vi mô (mốc 8s và 53s)
+            let fade = 0;
+            [8, 53].forEach(b => {
+                const d = Math.abs(state.currentTime - b);
+                if (d < 0.4) fade = Math.max(fade, (1 - d / 0.4) * 0.85);
+            });
+            if (fade > 0) {
+                ctx.fillStyle = `rgba(2, 6, 23, ${fade})`;
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            }
+        }
+
+        function drawLabGrid() {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.045)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= WIDTH; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, HEIGHT); ctx.stroke(); }
+            for (let y = 0; y <= HEIGHT; y += 64) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WIDTH, y); ctx.stroke(); }
+            ctx.restore();
+        }
+
+        // ---------- Hình học mạch ngoài ----------
+        const GEO_MICRO = { topY: FINGER_TOP, botY: 731, startX: 1140, botStartX: 1140, swX: 1215, xA: 1450, xB: 1680, loadY: 496, lead: null };
+        const GEO_OV = { topY: 650, botY: 800, startX: 979, botStartX: 934, swX: 1120, xA: 1380, xB: 1560, loadY: 725, lead: [[934, 800], [934, 736]] };
+
+        function loopPoints(g, xN) {
+            const pts = [[g.startX, g.topY], [xN, g.topY], [xN, g.botY], [g.botStartX, g.botY]];
+            if (g.lead) pts.push(g.lead[1]);
+            return pts;
+        }
+        function polyPos(points, f) {
+            const segs = [];
+            let total = 0;
+            for (let i = 1; i < points.length; i++) {
+                const l = Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+                segs.push(l); total += l;
+            }
+            let d = f * total;
+            for (let i = 0; i < segs.length; i++) {
+                if (d <= segs[i] || i === segs.length - 1) {
+                    const k = segs[i] ? d / segs[i] : 0;
+                    return [lerp(points[i][0], points[i + 1][0], k), lerp(points[i][1], points[i + 1][1], k)];
+                }
+                d -= segs[i];
+            }
+            return points[0];
+        }
+
+        function strokeWires(g) {
+            ctx.beginPath();
+            ctx.moveTo(g.startX, g.topY); ctx.lineTo(g.swX - 32, g.topY);
+            ctx.moveTo(g.swX + 32, g.topY); ctx.lineTo(g.xB, g.topY);
+            ctx.moveTo(g.xB, g.botY); ctx.lineTo(g.botStartX, g.botY);
+            if (g.lead) ctx.lineTo(g.lead[1][0], g.lead[1][1]);
+            [g.xA, g.xB].forEach(x => { ctx.moveTo(x, g.topY); ctx.lineTo(x, g.botY); });
+            ctx.stroke();
+        }
+
+        // Mạch ngoài: bóng đèn và quạt mắc SONG SONG, công tắc ở nhánh chung
+        function drawCircuit(g, active) {
+            ctx.save();
+            ctx.lineWidth = 10;
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#334155';
+            strokeWires(g);
+            if (active) {
+                ctx.strokeStyle = `rgba(34, 211, 238, ${0.22 + state.bulbLevel * 0.35})`;
+                ctx.lineWidth = 4;
+                strokeWires(g);
+            }
+
+            drawCircuitSwitch(g.swX, g.topY, state.circuitClosed);
+
+            // Electron trong dây (xám đứng yên nếu mạch hở / chưa có dòng)
+            const loads = [[g.xA, g.loadY, 46], [g.xB, g.loadY, 50]];
+            [[circuitElectrons.A, g.xA], [circuitElectrons.B, g.xB]].forEach(([arr, xN]) => {
+                const pts = loopPoints(g, xN);
+                arr.forEach(el => {
+                    const [ex, ey] = polyPos(pts, el.t);
+                    if (loads.some(([lx, ly, r]) => Math.hypot(ex - lx, ey - ly) < r)) return;
+                    ctx.fillStyle = active ? '#22d3ee' : '#475569';
+                    ctx.shadowBlur = active ? 10 : 0;
+                    ctx.shadowColor = '#06b6d4';
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+            ctx.shadowBlur = 0;
+
+            // Cực tính & chiều dòng điện
+            ctx.font = 'bold 18px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#22d3ee';
+            ctx.fillText('(−)', g.startX + 20, g.topY - 14);
+            ctx.fillStyle = '#fb7185';
+            ctx.fillText('(+)', g.botStartX + 20, g.botY + 30);
+            if (active) {
+                const mx = (g.swX + 40 + g.xA - 10) / 2;
+                ctx.font = 'bold 14px Inter';
+                ctx.fillStyle = '#22d3ee';
+                ctx.fillText('e⁻  →', mx, g.topY - 16);
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText('←  I quy ước', mx, g.topY + 34);
+            }
+
+            drawLightBulb(g.xA, g.loadY, state.bulbLevel);
+            drawElectricFan(g.xB, g.loadY, state.fanAngle, state.bulbLevel);
+            ctx.restore();
+        }
+
+        function drawCircuitSwitch(x, y, isClosed) {
+            ctx.save();
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.arc(x - 32, y, 6, 0, Math.PI * 2);
+            ctx.arc(x + 32, y, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = isClosed ? '#34d399' : '#fb7185';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(x - 32, y);
+            ctx.lineTo(isClosed ? x + 32 : x + 22, isClosed ? y : y - 28);
+            ctx.stroke();
+            ctx.fillStyle = isClosed ? '#34d399' : '#fb7185';
+            ctx.font = 'bold 12px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText(isClosed ? 'CÔNG TẮC ĐÓNG' : 'CÔNG TẮC NGẮT', x, y - 36);
+            ctx.restore();
+        }
+
+        function drawLightBulb(x, y, power) {
+            ctx.save();
+            if (power > 0.02) {
+                const glowRadius = 55 + power * 110;
+                const glow = ctx.createRadialGradient(x, y, 10, x, y, glowRadius);
+                glow.addColorStop(0, `rgba(254, 240, 138, ${0.45 + power * 0.5})`);
+                glow.addColorStop(0.5, `rgba(250, 204, 21, ${power * 0.35})`);
+                glow.addColorStop(1, 'rgba(250, 204, 21, 0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.fillStyle = power > 0.02 ? `rgba(254, 240, 138, ${0.35 + power * 0.65})` : 'rgba(30, 41, 59, 0.92)';
+            ctx.strokeStyle = power > 0.02 ? '#fde047' : '#64748b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y, 38, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.strokeStyle = power > 0.02 ? '#ffffff' : '#475569';
+            ctx.beginPath();
+            ctx.moveTo(x - 12, y + 20); ctx.lineTo(x - 8, y - 4); ctx.lineTo(x, y + 6); ctx.lineTo(x + 8, y - 4); ctx.lineTo(x + 12, y + 20);
+            ctx.stroke();
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(x - 16, y + 34, 32, 16);
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = 'bold 13px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText(`BÓNG ĐÈN · ${Math.round(power * 100)}%`, x, y + 76);
+            ctx.restore();
+        }
+
+        function drawElectricFan(x, y, angle, level) {
+            ctx.save();
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = level > 0.02 ? '#38bdf8' : '#475569';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y, 42, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.fillStyle = level > 0.02 ? '#38bdf8' : '#64748b';
+            for (let b = 0; b < 3; b++) {
+                ctx.rotate((Math.PI * 2) / 3);
+                ctx.beginPath();
+                ctx.ellipse(0, -18, 7, 16, 0.25, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.fillStyle = '#e2e8f0';
+            ctx.beginPath();
+            ctx.arc(0, 0, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = 'bold 13px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('QUẠT (ĐỘNG CƠ DC)', x, y + 76);
+            ctx.restore();
+        }
+
+        // ==========================================
+        // CẢNH 1 & 7: TOÀN CẢNH
+        // ==========================================
+        function drawOverviewScene(scene) {
+            const cfg = LIGHT_CONFIG[getLightLevel()];
+
+            const sunX = 330, sunY = 200;
+            ctx.save();
+            const halo = ctx.createRadialGradient(sunX, sunY, 20, sunX, sunY, cfg.sunRadius * 2.6);
+            halo.addColorStop(0, 'rgba(254, 240, 138, 0.9)');
+            halo.addColorStop(0.4, `rgba(250, 204, 21, ${cfg.rayAlpha})`);
+            halo.addColorStop(1, 'rgba(250, 204, 21, 0)');
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, cfg.sunRadius * 2.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fef08a';
+            ctx.shadowBlur = 45;
+            ctx.shadowColor = '#facc15';
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, cfg.sunRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = '#fef08a';
+            ctx.font = 'bold 15px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('MẶT TRỜI — NGUỒN PHOTON', sunX, sunY + cfg.sunRadius + 30);
+            ctx.restore();
+
+            const panelCenterX = 760, panelCenterY = 670;
+            ctx.save();
+            const beamGrad = ctx.createLinearGradient(sunX, sunY, panelCenterX, panelCenterY);
+            beamGrad.addColorStop(0, `rgba(254, 240, 138, ${cfg.rayAlpha})`);
+            beamGrad.addColorStop(1, 'rgba(250, 204, 21, 0.04)');
+            ctx.fillStyle = beamGrad;
+            ctx.beginPath();
+            ctx.moveTo(sunX - 50, sunY + 50);
+            ctx.lineTo(sunX + 70, sunY - 40);
+            ctx.lineTo(panelCenterX + 210, panelCenterY - 60);
+            ctx.lineTo(panelCenterX - 210, panelCenterY + 70);
+            ctx.closePath();
+            ctx.fill();
+
+            const activeCount = Math.floor(skyPhotons.length * cfg.photonRate);
+            for (let i = 0; i < activeCount; i++) {
+                const p = skyPhotons[i];
+                const targetX = panelCenterX + p.lane;
+                const targetY = panelCenterY - p.lane * 0.25;
+                const px = sunX + (targetX - sunX) * p.progress;
+                const py = sunY + (targetY - sunY) * p.progress;
+                ctx.fillStyle = '#fde047';
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#facc15';
+                ctx.beginPath();
+                ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            drawTiltedSolarPanel(panelCenterX, panelCenterY);
+            ctx.save();
+            ctx.fillStyle = '#7dd3fc';
+            ctx.font = 'bold 15px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('TẤM PIN (NHIỀU TẾ BÀO NỐI TIẾP)', panelCenterX, 935);
+            ctx.restore();
+
+            drawCircuit(GEO_OV, isCircuitActive(scene));
+        }
+
+        function drawTiltedSolarPanel(cx, cy) {
+            ctx.save();
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 14;
+            ctx.beginPath();
+            ctx.moveTo(cx - 80, cy + 40); ctx.lineTo(cx - 110, cy + 210);
+            ctx.moveTo(cx + 90, cy + 10); ctx.lineTo(cx + 120, cy + 210);
+            ctx.stroke();
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.roundRect(cx - 180, cy + 205, 380, 22, 8);
+            ctx.fill();
+
+            ctx.translate(cx, cy);
+            ctx.transform(1, -0.26, -0.45, 0.85, 0, 0);
+            const pw = 460, ph = 280;
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.roundRect(-pw / 2 - 12, -ph / 2 - 12, pw + 24, ph + 24, 14);
+            ctx.fill();
+            const cellGrad = ctx.createLinearGradient(-pw / 2, -ph / 2, pw / 2, ph / 2);
+            cellGrad.addColorStop(0, '#0c4a6e');
+            cellGrad.addColorStop(0.5, '#0369a1');
+            cellGrad.addColorStop(1, '#1e3a8a');
+            ctx.fillStyle = cellGrad;
+            ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.lineWidth = 2;
+            for (let c = 1; c < 6; c++) { const x = -pw / 2 + (pw / 6) * c; ctx.beginPath(); ctx.moveTo(x, -ph / 2); ctx.lineTo(x, ph / 2); ctx.stroke(); }
+            for (let r = 1; r < 4; r++) { const y = -ph / 2 + (ph / 4) * r; ctx.beginPath(); ctx.moveTo(-pw / 2, y); ctx.lineTo(pw / 2, y); ctx.stroke(); }
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.beginPath();
+            ctx.moveTo(-pw / 2, -ph / 2); ctx.lineTo(pw * 0.2, -ph / 2); ctx.lineTo(-pw * 0.3, ph / 2); ctx.lineTo(-pw / 2, ph / 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // ==========================================
+        // CẢNH 2–6: CẤU TRÚC VI MÔ TẾ BÀO
+        // ==========================================
+        function drawMicroscopicSolarCellScene(scene) {
+            const level = getLightLevel();
+            const cfg = LIGHT_CONFIG[level];
+            const t = state.currentTime;
+            const cellX = 380, cellW = 760;
+
+            // Nhãn nguồn sáng
+            ctx.save();
+            ctx.fillStyle = '#fde047';
+            ctx.font = 'bold 15px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText('☀ ÁNH SÁNG MẶT TRỜI (PHOTON hν) ↓', cellX + cellW + 18, 150);
+            ctx.restore();
+
+            // 1. Kính bảo vệ  2. Lớp chống phản xạ
+            drawLayerRect(cellX, 210, cellW, 38, 'rgba(186, 230, 253, 0.25)', '#7dd3fc', '1. LỚP KÍNH BẢO VỆ (PROTECTIVE GLASS)');
+            drawLayerRect(cellX, 248, cellW, 28, 'rgba(99, 102, 241, 0.45)', '#818cf8', '2. LỚP CHỐNG PHẢN XẠ (ARC)');
+
+            // 3. Điện cực trước: các ngón kim loại mảnh cắm xuyên ARC xuống lớp n
+            ctx.save();
+            ctx.fillStyle = '#e2e8f0';
+            ctx.strokeStyle = '#f8fafc';
+            ctx.lineWidth = 1.5;
+            FINGERS.forEach(fx => {
+                ctx.fillRect(fx - FINGER_HALF, FINGER_TOP, FINGER_HALF * 2, 48);
+                ctx.strokeRect(fx - FINGER_HALF, FINGER_TOP, FINGER_HALF * 2, 48);
+            });
+            // Thanh gom (busbar) nối các ngón, nằm ngoài mặt phẳng cắt nên vẽ nét đứt
+            ctx.setLineDash([6, 5]);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(FINGERS[0], FINGER_TOP);
+            ctx.lineTo(cellX + cellW, FINGER_TOP);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = 'bold 13px Inter';
+            ctx.textAlign = 'right';
+            ctx.fillText('3. ĐIỆN CỰC TRƯỚC — LƯỚI NGÓN (CỰC ÂM −)', cellX - 18, 298);
+            ctx.restore();
+
+            // 4. Lớp n
+            drawLayerRect(cellX, 310, cellW, 145, 'rgba(14, 116, 144, 0.38)', '#22d3ee', '4. BÁN DẪN LOẠI N (N-TYPE SILICON)');
+            // 6. Lớp p
+            drawLayerRect(cellX, 555, cellW, 155, 'rgba(159, 18, 57, 0.35)', '#fb7185', '6. BÁN DẪN LOẠI P (P-TYPE SILICON)');
+            // 7. Điện cực sau
+            drawLayerRect(cellX, 710, cellW, 42, '#64748b', '#cbd5e1', '7. ĐIỆN CỰC SAU (CỰC DƯƠNG +)');
+
+            drawDopingCarriers(t);
+
+            // 5. Vùng tiếp giáp p-n
+            const ionAlpha = scene < 4 ? 0.3 : (scene === 4 ? lerp(0.3, 1, clamp((t - 27.5) / 2.5)) : 1);
+            const fieldAlpha = scene < 4 ? 0 : (scene === 4 ? clamp((t - 30) / 1.5) : 1);
+            drawDepletionRegion(cellX, 455, cellW, 100, ionAlpha, fieldAlpha);
+
+            // Chú thích tỉ lệ
+            ctx.save();
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'italic 13px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText('(Độ dày các lớp không đúng tỉ lệ: thực tế lớp n chỉ ~0,3 µm, lớp p ~180 µm.)', cellX, 782);
+            ctx.restore();
+
+            // Quá trình khuếch tán tạo vùng nghèo (đầu cảnh 4)
+            if (scene === 4 && t < 30.3) drawJunctionFormation(t);
+
+            // Hiệu ứng (hấp thụ, tái hợp, thu điện tích)
+            sparks.forEach(s => {
+                const k = s.age / 0.55;
+                ctx.save();
+                ctx.strokeStyle = s.color;
+                ctx.globalAlpha = 1 - k;
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, 4 + k * s.maxR, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            });
+
+            // Photon
+            const activePhotons = Math.floor(internalPhotons.length * cfg.photonRate);
+            for (let i = 0; i < activePhotons; i++) {
+                const p = internalPhotons[i];
+                ctx.save();
+                if (p.ir) {
+                    ctx.strokeStyle = '#fb923c';
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#f97316';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = '#fde047';
+                    ctx.shadowBlur = 14;
+                    ctx.shadowColor = '#facc15';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 5.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.strokeStyle = p.ir ? 'rgba(251, 146, 60, 0.4)' : 'rgba(253, 224, 71, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x - p.vx * 0.08, p.y - p.vy * 0.08);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Hạt tải điện quang sinh (cảnh ≥ 3)
+            if (scene >= 3) {
+                carriers.forEach(c => {
+                    if (c.type === 'h') {
+                        ctx.save();
+                        ctx.strokeStyle = '#fb7185';
+                        ctx.fillStyle = 'rgba(251, 113, 133, 0.2)';
+                        ctx.lineWidth = 2.8;
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = '#f43f5e';
+                        ctx.beginPath();
+                        ctx.arc(c.x, c.y, 7, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.fillStyle = '#ffe4e6';
+                        ctx.font = 'bold 11px Inter';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('+', c.x, c.y + 4);
+                        ctx.restore();
+                    } else {
+                        ctx.save();
+                        ctx.fillStyle = '#22d3ee';
+                        ctx.shadowBlur = 14;
+                        ctx.shadowColor = '#06b6d4';
+                        ctx.beginPath();
+                        ctx.arc(c.x, c.y, 6.5, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#083344';
+                        ctx.font = 'bold 12px Inter';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('−', c.x, c.y + 4);
+                        ctx.restore();
+                    }
+                });
+            }
+
+            // Mạch ngoài
+            drawCircuit(GEO_MICRO, isCircuitActive(scene));
+        }
+
+        function drawLayerRect(x, y, w, h, fill, stroke, leftLabel) {
+            ctx.save();
+            ctx.fillStyle = fill;
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 2;
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeRect(x, y, w, h);
+            ctx.fillStyle = stroke;
+            ctx.font = 'bold 13px Inter';
+            ctx.textAlign = 'right';
+            ctx.fillText(leftLabel, x - 18, y + h / 2 + 5);
+            ctx.restore();
+        }
+
+        // Hạt tải đa số (mờ): n có nhiều e⁻ tự do (pha P), p có nhiều lỗ trống (pha B)
+        function drawDopingCarriers(t) {
+            ctx.save();
+            nDots.forEach(d => {
+                const x = d.x + Math.sin(t * 2 + d.ph) * 4, y = d.y + Math.cos(t * 1.7 + d.ph) * 4;
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.4)';
+                ctx.beginPath();
+                ctx.arc(x, y, 2.8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            pDots.forEach(d => {
+                const x = d.x + Math.sin(t * 1.8 + d.ph) * 4, y = d.y + Math.cos(t * 2.1 + d.ph) * 4;
+                ctx.strokeStyle = 'rgba(251, 113, 133, 0.45)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(x, y, 3.4, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+            ctx.fillStyle = 'rgba(165, 243, 252, 0.8)';
+            ctx.font = '600 12px Inter';
+            ctx.textAlign = 'right';
+            ctx.fillText('Pha P (donor): nhiều e⁻ tự do', 1128, 440);
+            ctx.fillStyle = 'rgba(254, 205, 211, 0.85)';
+            ctx.fillText('Pha B (acceptor): nhiều lỗ trống', 1128, 700);
+            ctx.restore();
+        }
+
+        function drawDepletionRegion(x, y, w, h, ionAlpha, fieldAlpha) {
+            ctx.save();
+            const grad = ctx.createLinearGradient(x, y, x, y + h);
+            grad.addColorStop(0, 'rgba(34, 211, 238, 0.16)');
+            grad.addColorStop(0.5, 'rgba(250, 204, 21, 0.18)');
+            grad.addColorStop(1, 'rgba(251, 113, 133, 0.16)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, w, h);
+            ctx.setLineDash([8, 6]);
+            ctx.strokeStyle = '#facc15';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, w, h);
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#fde047';
+            ctx.font = 'bold 13px Inter';
+            ctx.textAlign = 'right';
+            ctx.fillText('5. VÙNG TIẾP GIÁP P-N (VÙNG NGHÈO)', x - 18, y + h / 2 + 5);
+
+            // Ion cố định: phía n mất e⁻ → ion dương (+); phía p nhận e⁻ → ion âm (−)
+            ctx.globalAlpha = ionAlpha;
+            for (let c = 0; c < 7; c++) {
+                const ix = x + 65 + c * 105;
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(ix, y + 24, 10, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(125, 211, 252, 0.9)';
+                ctx.font = 'bold 13px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('+', ix, y + 29);
+
+                ctx.strokeStyle = 'rgba(251, 113, 133, 0.7)';
+                ctx.beginPath();
+                ctx.arc(ix, y + 76, 10, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(253, 164, 175, 0.9)';
+                ctx.fillText('−', ix, y + 80);
+            }
+            ctx.globalAlpha = 1;
+
+            // Điện trường nội E: từ n (+) sang p (−), tức hướng XUỐNG
+            if (fieldAlpha > 0.01) {
+                ctx.globalAlpha = fieldAlpha;
+                for (let c = 0; c < 7; c++) {
+                    const ix = x + 65 + c * 105 + 36;
+                    ctx.strokeStyle = '#facc15';
+                    ctx.fillStyle = '#facc15';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(ix, y + 16);
+                    ctx.lineTo(ix, y + 78);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(ix, y + 88);
+                    ctx.lineTo(ix - 6, y + 76);
+                    ctx.lineTo(ix + 6, y + 76);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+                ctx.fillRect(x + w - 262, y + 36, 247, 28);
+                ctx.fillStyle = '#fde047';
+                ctx.font = 'bold 13px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('ĐIỆN TRƯỜNG NỘI E ↓ (n → p)', x + w - 138, y + 55);
+                ctx.globalAlpha = 1;
+            }
+            ctx.restore();
+        }
+
+        // Cảnh 4 (26–30s): e⁻ từ n khuếch tán sang p, lỗ trống từ p sang n, tái hợp ở biên → để lại ion cố định
+        function drawJunctionFormation(t) {
+            const u = clamp((t - 26) / 3.6);
+            const fadeOut = 1 - clamp((t - 29.7) / 0.6);
+            ctx.save();
+            ctx.globalAlpha = fadeOut;
+            for (let k = 0; k < 12; k++) {
+                const x = 435 + k * 58;
+                const prog = clamp(u * 1.15 - (k % 4) * 0.07);
+                const eY = lerp(385, 505, easeInOut(prog));
+                const hY = lerp(630, 505, easeInOut(prog));
+                if (prog < 1) {
+                    ctx.fillStyle = '#67e8f9';
+                    ctx.beginPath();
+                    ctx.arc(x, eY, 4.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fda4af';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(x + 22, hY, 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeStyle = 'rgba(254, 240, 138, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(x + 11, 505, 8 + (u * 8) % 6, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            ctx.fillStyle = '#fde047';
+            ctx.font = 'bold 15px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText('KHUẾCH TÁN: e⁻ n → p ↓ , lỗ trống p → n ↑ rồi tái hợp ở biên', 400, 436);
+            ctx.restore();
+        }
+
+        // ==========================================
+        // HUD (vẽ theo tọa độ màn hình, không bị camera ảnh hưởng)
+        // ==========================================
+        function hudPanel(x, y, w, h, title, color) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(10, 18, 36, 0.92)';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 14);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = color;
+            ctx.font = 'bold 15px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText(title, x + 16, y + 30);
+            ctx.restore();
+        }
+
+        function wrapLines(text, maxW) {
+            const words = text.split(' ');
+            const lines = [];
+            let line = '';
+            words.forEach(w => {
+                const test = line ? line + ' ' + w : w;
+                if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+                else line = test;
+            });
+            if (line) lines.push(line);
+            return lines;
+        }
+
+        function drawHUD(scene) {
+            ctx.save();
+            // Lời thuyết minh từng bước
+            const bx = 60, by = 972, bw = 1800, bh = 96;
+            ctx.fillStyle = 'rgba(10, 18, 36, 0.9)';
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(bx, by, bw, bh, 14);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '500 19px Inter';
+            ctx.textAlign = 'left';
+            wrapLines(CAPTIONS[scene], bw - 40).slice(0, 3).forEach((ln, i) => ctx.fillText(ln, bx + 20, by + 30 + i * 27));
+
+            if (scene === 3) drawBandDiagramHUD(1520, 330, 370, 440);
+            if (scene === 4) drawJunctionStepsHUD(1520, 330, 370, 440);
+            if (scene === 5 || scene === 6) drawMetersHUD(1340, 770, 540, 190, true);
+            if (scene === 7) {
+                drawEnergyBalanceHUD(1280, 110, 600, 300);
+                drawMetersHUD(1340, 830, 540, 130, false);
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.roundRect(520, 110, 720, 92, 20);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '800 34px Inter';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = '#38bdf8';
+                ctx.fillText('QUANG NĂNG  →  ĐIỆN NĂNG', 880, 168);
+            }
+            ctx.restore();
+        }
+
+        // Giản đồ vùng năng lượng: vì sao photon hν ≥ Eg mới tạo được cặp e⁻–h⁺
+        function drawBandDiagramHUD(x, y, w, h) {
+            hudPanel(x, y, w, h, 'GIẢN ĐỒ VÙNG NĂNG LƯỢNG (SILICON)', '#38bdf8');
+            ctx.save();
+            const bx = x + 24, bw = w - 48;
+            const ecY = y + 86, ecH = 56;
+            const gapTop = ecY + ecH, gapPx = 140;
+            const vbY = gapTop + gapPx, vbH = 56;
+            const pxPerEv = gapPx / 1.12;
+
+            ctx.fillStyle = 'rgba(34, 211, 238, 0.22)';
+            ctx.strokeStyle = '#22d3ee';
+            ctx.lineWidth = 2;
+            ctx.fillRect(bx, ecY, bw, ecH);
+            ctx.strokeRect(bx, ecY, bw, ecH);
+            ctx.fillStyle = '#a5f3fc';
+            ctx.font = 'bold 13px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText('VÙNG DẪN (Ec)', bx + 8, ecY + 20);
+
+            ctx.fillStyle = 'rgba(251, 113, 133, 0.22)';
+            ctx.strokeStyle = '#fb7185';
+            ctx.fillRect(bx, vbY, bw, vbH);
+            ctx.strokeRect(bx, vbY, bw, vbH);
+            ctx.fillStyle = '#fecdd3';
+            ctx.fillText('VÙNG HÓA TRỊ (Ev)', bx + 8, vbY + vbH - 10);
+
+            ctx.fillStyle = '#e2e8f0';
+            ctx.textAlign = 'center';
+            ctx.fillText('VÙNG CẤM  Eg = 1,12 eV', bx + bw * 0.38, gapTop + gapPx / 2 + 4);
+
+            const ph = state.currentTime % 6;
+            const ex = bx + bw * 0.45;
+            const yv = vbY + 22, yc = ecY + 30;
+            const barX = bx + bw - 30;
+            let eY = yv, holeShown = false, status, waveColor, waveProg = 0, barLen = 0, barColor;
+
+            if (ph < 2.4) {
+                waveColor = '#fb923c'; barColor = '#fb923c';
+                waveProg = clamp(ph / 1.2);
+                barLen = 0.9 * pxPerEv * waveProg;
+                status = 'Photon hồng ngoại: hν = 0,9 eV < Eg → KHÔNG hấp thụ, xuyên qua (chỉ gây nóng).';
+            } else {
+                waveColor = '#fde047'; barColor = '#fde047';
+                waveProg = clamp((ph - 2.4) / 1.0);
+                barLen = 1.8 * pxPerEv * waveProg;
+                const jump = clamp((ph - 3.4) / 0.8);
+                eY = lerp(yv, yc, easeInOut(jump));
+                holeShown = ph >= 3.6;
+                status = 'Photon nhìn thấy: hν = 1,8 eV ≥ Eg → e⁻ lên vùng dẫn, để lại lỗ trống; phần dư 0,68 eV → nhiệt.';
+            }
+
+            // Sóng photon đi vào
+            const waveEnd = bx + 6 + (ex - bx - 20) * waveProg;
+            if (ph < 3.6 || ph < 2.4) {
+                ctx.strokeStyle = waveColor;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                for (let sx = bx + 6; sx <= waveEnd; sx += 3) {
+                    const sy = yv + Math.sin((sx - bx) * 0.45) * 6;
+                    if (sx === bx + 6) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+                }
+                ctx.stroke();
+            }
+
+            // Thanh năng lượng photon so với Eg (phần vượt Eg tô cam = nhiệt)
+            ctx.fillStyle = barColor;
+            ctx.fillRect(barX, vbY - barLen, 14, barLen);
+            if (barLen > gapPx) {
+                ctx.fillStyle = '#f97316';
+                ctx.fillRect(barX, vbY - barLen, 14, barLen - gapPx);
+            }
+            ctx.strokeStyle = '#ffffff';
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(barX - 10, gapTop);
+            ctx.lineTo(barX + 24, gapTop);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // e⁻ và lỗ trống
+            if (holeShown) {
+                ctx.strokeStyle = '#fb7185';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(ex, yv, 8, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = '#ffe4e6';
+                ctx.font = 'bold 12px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('+', ex, yv + 4);
+            }
+            ctx.fillStyle = '#22d3ee';
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = '#06b6d4';
+            ctx.beginPath();
+            ctx.arc(ex, eY, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#083344';
+            ctx.font = 'bold 13px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('−', ex, eY + 4);
+
+            // Giải thích
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '600 14px Inter';
+            ctx.textAlign = 'left';
+            wrapLines(status, w - 40).slice(0, 3).forEach((ln, i) => ctx.fillText(ln, x + 20, y + 366 + i * 20));
+            ctx.fillStyle = '#7dd3fc';
+            ctx.font = '600 13px Inter';
+            ctx.fillText('E = hν = hc/λ  |  Eg(Si)=1,12 eV ⇒ λ ≤ 1107 nm', x + 20, y + h - 14);
+            ctx.restore();
+        }
+
+        function drawJunctionStepsHUD(x, y, w, h) {
+            hudPanel(x, y, w, h, 'HÌNH THÀNH ĐIỆN TRƯỜNG P-N', '#facc15');
+            ctx.save();
+            const scene = getCurrentSceneNumber();
+            const t = state.currentTime;
+            const steps = [
+                ['1', 'Khuếch tán: e⁻ từ vùng n sang p, lỗ trống từ p sang n.', 26],
+                ['2', 'Tái hợp ở biên, để lại ion cố định: (+) bên n, (−) bên p.', 28],
+                ['3', 'Các ion tạo điện trường nội E hướng từ n → p.', 30],
+                ['4', 'E đẩy e⁻ lên n, lỗ trống xuống p: tách cặp e⁻–h⁺ do ánh sáng sinh ra.', 32]
+            ];
+            let active = -1;
+            steps.forEach((s, i) => { if (scene > 4 || (scene === 4 && t >= s[2])) active = i; });
+            steps.forEach((s, i) => {
+                const sy = y + 56 + i * 94;
+                const on = i === active;
+                ctx.fillStyle = on ? '#facc15' : 'rgba(100, 116, 139, 0.5)';
+                ctx.beginPath();
+                ctx.arc(x + 32, sy + 16, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = on ? '#0f172a' : '#cbd5e1';
+                ctx.font = 'bold 16px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(s[0], x + 32, sy + 22);
+                ctx.fillStyle = on ? '#ffffff' : '#94a3b8';
+                ctx.font = (on ? '700' : '500') + ' 15px Inter';
+                ctx.textAlign = 'left';
+                wrapLines(s[1], w - 84).slice(0, 4).forEach((ln, k) => ctx.fillText(ln, x + 58, sy + 12 + k * 21));
+            });
+            ctx.restore();
+        }
+
+        function drawMetersHUD(x, y, w, h, withChart) {
+            const level = getLightLevel();
+            const cfg = LIGHT_CONFIG[level];
+            hudPanel(x, y, w, h, 'ĐO ĐẠC TẾ BÀO (diện tích 1 cm²)', '#34d399');
+            ctx.save();
+            const m = state.meter;
+            const rows = [
+                ['Cường độ sáng', `${Math.round(cfg.G * 1000)} W/m²`, '#fde047'],
+                ['Điện áp V', `${m.V.toFixed(3)} V`, '#38bdf8'],
+                ['Mật độ dòng J', `${m.J.toFixed(1)} mA/cm²`, '#22d3ee'],
+                ['Công suất P', `${m.P.toFixed(1)} mW/cm²`, '#34d399']
+            ];
+            ctx.font = '600 15px Inter';
+            if (withChart) {
+                rows.forEach((r, i) => {
+                    const ry = y + 62 + i * 30;
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.fillText(r[0], x + 16, ry);
+                    ctx.fillStyle = r[2];
+                    ctx.font = 'bold 15px Inter';
+                    ctx.fillText(r[1], x + 150, ry);
+                    ctx.font = '600 15px Inter';
+                });
+                ctx.fillStyle = state.circuitClosed ? '#34d399' : '#fb7185';
+                ctx.font = 'bold 13px Inter';
+                ctx.fillText(state.circuitClosed ? 'MẠCH KÍN: công suất cực đại' : 'MẠCH HỞ: V = Voc, I = 0', x + 16, y + h - 16);
+                drawIVChart(x + w - 262, y + 44, 244, h - 66);
+            } else {
+                rows.forEach((r, i) => {
+                    const col = i % 2, row = Math.floor(i / 2);
+                    const rx = x + 16 + col * 262, ry = y + 62 + row * 30;
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '600 14px Inter';
+                    ctx.fillText(r[0], rx, ry);
+                    ctx.fillStyle = r[2];
+                    ctx.font = 'bold 14px Inter';
+                    ctx.fillText(r[1], rx + 112, ry);
+                });
+                ctx.fillStyle = state.circuitClosed ? '#34d399' : '#fb7185';
+                ctx.font = 'bold 13px Inter';
+                ctx.fillText(state.circuitClosed ? 'MẠCH KÍN' : 'MẠCH HỞ: V = Voc, I = 0', x + 16, y + h - 14);
+            }
+            ctx.restore();
+        }
+
+        // Đường đặc tuyến J–V: điểm làm việc là cực đại công suất (mạch kín) hoặc Voc (mạch hở)
+        function drawIVChart(x, y, w, h) {
+            ctx.save();
+            const Vmax = 0.7, Jmax = 44;
+            const px = V => x + 28 + (V / Vmax) * (w - 36);
+            const py = J => y + h - 22 - (J / Jmax) * (h - 32);
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(px(0), py(0)); ctx.lineTo(px(Vmax), py(0));
+            ctx.moveTo(px(0), py(0)); ctx.lineTo(px(0), py(Jmax));
+            ctx.stroke();
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('V (V)', x + w / 2 + 10, y + h - 4);
+            ctx.save();
+            ctx.translate(x + 8, y + h / 2 - 6);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('J (mA/cm²)', 0, 0);
+            ctx.restore();
+
+            const cur = getLightLevel();
+            ['low', 'medium', 'high'].forEach(lv => {
+                const mdl = MODEL[lv];
+                ctx.strokeStyle = lv === cur ? '#22d3ee' : 'rgba(148, 163, 184, 0.35)';
+                ctx.lineWidth = lv === cur ? 3 : 1.5;
+                ctx.beginPath();
+                for (let V = 0; V <= mdl.Voc; V += 0.005) {
+                    const J = cellJ(V, mdl.G);
+                    if (V === 0) ctx.moveTo(px(V), py(J)); else ctx.lineTo(px(V), py(J));
+                }
+                ctx.stroke();
+            });
+            ctx.fillStyle = '#fde047';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#facc15';
+            ctx.beginPath();
+            ctx.arc(px(state.meter.V), py(state.meter.J), 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawEnergyBalanceHUD(x, y, w, h) {
+            hudPanel(x, y, w, h, 'CÂN BẰNG NĂNG LƯỢNG ÁNH SÁNG TỚI (100%)', '#fde047');
+            ctx.save();
+            const model = MODEL[getLightLevel()];
+            const elec = state.circuitClosed ? model.eff * 100 : 0;
+            const therm = 33, ir = 19;
+            const rest = 100 - elec - therm - ir;
+            const segs = [
+                [elec, '#34d399', state.circuitClosed ? `Điện năng hữu ích ≈ ${elec.toFixed(0)}%` : 'Mạch hở: 0% điện năng ra mạch ngoài'],
+                [therm, '#f59e0b', 'Nhiệt do photon dư năng lượng (hν > Eg) ≈ 33%'],
+                [ir, '#c2410c', 'Photon hν < Eg xuyên qua, không hấp thụ ≈ 19%'],
+                [rest, '#64748b', `Phản xạ, che khuất, tái hợp, điện trở ≈ ${rest.toFixed(0)}%`]
+            ];
+            const bx = x + 20, bw = w - 40;
+            let cx0 = bx;
+            segs.forEach(s => {
+                const sw = bw * s[0] / 100;
+                ctx.fillStyle = s[1];
+                ctx.fillRect(cx0, y + 56, sw, 40);
+                cx0 += sw;
+            });
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(bx, y + 56, bw, 40);
+            ctx.font = '600 15px Inter';
+            ctx.textAlign = 'left';
+            segs.forEach((s, i) => {
+                const ly = y + 134 + i * 36;
+                ctx.fillStyle = s[1];
+                ctx.fillRect(x + 20, ly - 13, 16, 16);
+                ctx.fillStyle = '#e2e8f0';
+                ctx.fillText(s[2], x + 46, ly);
+            });
+            ctx.restore();
+        }
+
+        // ==========================================
+        // KHỞI CHẠY
+        // ==========================================
+        initParticles();
+        settleLoads();
+        updateCameraTargets(true);
+        initCanvasSize();
+        updateTimelineUI();
+        updateControlButtonsUI();
+        refreshLightButtons();
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(renderFrame);
+        showToast('Sẵn sàng! Nhấn PLAY để xem quá trình chuyển đổi Quang Năng → Điện Năng.');
+    </script>
+</body>
+</html>
